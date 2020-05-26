@@ -38,10 +38,19 @@ class Player{
 		this.object.lookAt(pt);
 		
         if (options.anims){ 
+            //Use this option to crop a single animation into multiple clips
             this.mixer = new THREE.AnimationMixer(options.object);
             options.anims.forEach(function(anim){
                 self.animations[anim.name] = THREE.AnimationUtils.subclip(clip, anim.name, anim.start, anim.end);
             });
+        }
+        
+        if (options.animations){
+            //Use this option to set multiple animations directly
+            this.mixer = new THREE.AnimationMixer(options.object);
+            options.animations.forEach( (animation)=>{
+                self.animations[animation.name] = animation;
+            })
         }
 	}
 	
