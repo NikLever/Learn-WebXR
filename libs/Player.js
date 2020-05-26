@@ -20,13 +20,15 @@ class Player{
         
         if (this.npc) this.dead = false;
 		
-		this.pathfinder = options.app.pathfinder;
-		
-		this.speed = options.speed;
-		this.app = options.app;
-		this.ZONE = options.app.ZONE;
-		
-		this.navMeshGroup = this.pathfinder.getGroup(this.ZONE, this.object.position);	
+        if (options.app.pathfinder){
+            this.pathfinder = options.app.pathfinder;
+
+            this.speed = options.speed;
+            this.app = options.app;
+            this.ZONE = options.app.ZONE;
+
+            this.navMeshGroup = this.pathfinder.getGroup(this.ZONE, this.object.position);	
+        }
 		
 		const clip = options.clip;
 		const self = this;
@@ -44,6 +46,8 @@ class Player{
 	}
 	
 	newPath(pt){
+        if (this.pathfinder===undefined) return;
+        
 		console.log(`New path to ${pt.x.toFixed(1)}, ${pt.y.toFixed(2)}, ${pt.z.toFixed(2)}`);
 		const player = this.object;
 
@@ -140,38 +144,40 @@ class Player{
 		
 		if (this.mixer) this.mixer.update(dt);
 		
-		if (this.calculatedPath && this.calculatedPath.length) {
-			const targetPosition = this.calculatedPath[0];
+        if (this.pathfinder!==undefined){
+            if (this.calculatedPath && this.calculatedPath.length) {
+                const targetPosition = this.calculatedPath[0];
 
-			const vel = targetPosition.clone().sub(player.position);
+                const vel = targetPosition.clone().sub(player.position);
 
-			if (vel.lengthSq() > 0.1) {
-				vel.normalize();
-				// Move player to target
-				if (this.quaternion) player.quaternion.slerp(this.quaternion, 0.1);
-				player.position.add(vel.multiplyScalar(dt * speed));
-			} else {
-				// Remove node from the path we calculated
-				this.calculatedPath.shift();
-				if (this.calculatedPath.length==0){
-					if (this.npc){
-						this.newPath(this.app.randomWaypoint);
-					}else{
-						this.action = 'idle';
-					}
-				}else{
-					const pt = this.calculatedPath[0].clone();
-					pt.y = player.position.y;
-					const quaternion = player.quaternion.clone();
-					player.lookAt(pt);
-					this.quaternion = player.quaternion.clone();
-					player.quaternion.copy(quaternion); 
-				}
-			}
-		}else{
-			if (this.npc && !this.dead) this.newPath(this.app.randomWaypoint);
-		}
-	}
+                if (vel.lengthSq() > 0.1) {
+                    vel.normalize();
+                    // Move player to target
+                    if (this.quaternion) player.quaternion.slerp(this.quaternion, 0.1);
+                    player.position.add(vel.multiplyScalar(dt * speed));
+                } else {
+                    // Remove node from the path we calculated
+                    this.calculatedPath.shift();
+                    if (this.calculatedPath.length==0){
+                        if (this.npc){
+                            this.newPath(this.app.randomWaypoint);
+                        }else{
+                            this.action = 'idle';
+                        }
+                    }else{
+                        const pt = this.calculatedPath[0].clone();
+                        pt.y = player.position.y;
+                        const quaternion = player.quaternion.clone();
+                        player.lookAt(pt);
+                        this.quaternion = player.quaternion.clone();
+                        player.quaternion.copy(quaternion); 
+                    }
+                }
+            }else{
+                if (this.npc && !this.dead) this.newPath(this.app.randomWaypoint);
+            }
+        }
+    }
 }
 
 export { Player };
