@@ -6,8 +6,8 @@
         <title>Show What Information is Being Sensed in the World</title>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-        <script src="../libs/three.min.js"></script>
-        <script module src="../libs/webxr.js"></script>
+        <script src="../libs/three/three.min.js"></script>
+        <script module src="../libs/mozilla/webxr.js"></script>
         <link rel="stylesheet" href="../css/common.css"/>
     </head>
     <body>
@@ -27,11 +27,11 @@
             */
 
             // some dependencies and utilities
-            import * as mat4 from '../libs/gl-matrix/mat4.js'
-            import * as vec3 from '../libs/gl-matrix/vec3.js'
+            import * as mat4 from '../libs/mozilla/gl-matrix/mat4.js'
+            import * as vec3 from '../libs/mozilla/gl-matrix/vec3.js'
 
-            import XREngine from "../libs/XREngine.js"
-            import XRInputManager from "../libs/XRInputManager.js"
+            import XREngine from "../libs/mozilla/XREngine.js"
+            import XRInputManager from "../libs/mozilla/XRInputManager.js"
 
             let device = null
             let session = null

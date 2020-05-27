@@ -40,9 +40,14 @@ class App{
 
         function onSelect() {
             if (self.knight===undefined) return;
-            self.knight.object.position.set( 0, 0, - 0.3 ).applyMatrix4( self.controller.matrixWorld );
-            self.knight.object.quaternion.setFromRotationMatrix( self.controller.matrixWorld );
-            self.knight.object.visible = true;
+            if (self.knight.object.visible){
+                const targetPos = new THREE.Vector3().setFromMatrixPosition(self.controller.matrixWorld);
+                self.knight.newPath(targetPos);
+            }else{
+                self.knight.object.position.set( 0, 0, - 0.3 ).applyMatrix4( self.controller.matrixWorld );
+                //self.knight.object.quaternion.setFromRotationMatrix( self.controller.matrixWorld );
+                self.knight.object.visible = true;
+            }
         }
 
         this.controller = this.renderer.xr.getController( 0 );
@@ -87,7 +92,7 @@ class App{
 					clip: gltf.animations[0],
 					app: self,
 					name: 'knight',
-					npc: true
+					npc: false
 				};
 				
 				self.knight = new Player(options);

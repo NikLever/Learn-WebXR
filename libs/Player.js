@@ -49,13 +49,17 @@ class Player{
             //Use this option to set multiple animations directly
             this.mixer = new THREE.AnimationMixer(options.object);
             options.animations.forEach( (animation)=>{
-                self.animations[animation.name] = animation;
+                self.animations[animation.name.toLowerCase()] = animation;
             })
         }
 	}
 	
 	newPath(pt){
-        if (this.pathfinder===undefined) return;
+        if (this.pathfinder===undefined){
+            this.calculatedPath = [ pt ];
+            this.action = 'walk';
+            return;
+        }
         
 		console.log(`New path to ${pt.x.toFixed(1)}, ${pt.y.toFixed(2)}, ${pt.z.toFixed(2)}`);
 		const player = this.object;
@@ -112,25 +116,27 @@ class Player{
 		} else {
 			this.action = 'idle';
 			
-			const closestPlayerNode = self.pathfinder.getClosestNode(player.position, this.ZONE, this.navMeshGroup);
-			const clamped = new THREE.Vector3();
-			this.pathfinder.clampStep(
-				player.position, 
-				pt.clone(), 
-				closestPlayerNode, 
-				this.ZONE, 
-				this.navMeshGroup, 
-				clamped);
-
+            if (self.pathfinder){
+                const closestPlayerNode = self.pathfinder.getClosestNode(player.position, this.ZONE, this.navMeshGroup);
+                const clamped = new THREE.Vector3();
+                this.pathfinder.clampStep(
+                    player.position, 
+                    pt.clone(), 
+                    closestPlayerNode, 
+                    this.ZONE, 
+                    this.navMeshGroup, 
+                    clamped);
+            }
+            
 			if (this.pathLines) this.app.scene.remove(this.pathLines);
 		}
 	}
 	
 	set action(name){
 		//Make a copy of the clip if this is a remote player
-		if (this.actionName == name) return;
+		if (this.actionName == name.toLowerCase()) return;
 		
-		const clip = this.animations[name];
+		const clip = this.animations[name.toLowerCase()];
 		
         delete this.curAction;
         
@@ -139,7 +145,7 @@ class Player{
 			action.loop = clip.loop;
 			action.time = 0;
 			this.mixer.stopAllAction();
-			this.actionName = name;
+			this.actionName = name.toLowerCase();
 			this.actionTime = Date.now();
 			action.fadeIn(0.5);	
 			action.play();
@@ -153,38 +159,36 @@ class Player{
 		
 		if (this.mixer) this.mixer.update(dt);
 		
-        if (this.pathfinder!==undefined){
-            if (this.calculatedPath && this.calculatedPath.length) {
-                const targetPosition = this.calculatedPath[0];
+        if (this.calculatedPath && this.calculatedPath.length) {
+            const targetPosition = this.calculatedPath[0];
 
-                const vel = targetPosition.clone().sub(player.position);
+            const vel = targetPosition.clone().sub(player.position);
 
-                if (vel.lengthSq() > 0.1) {
-                    vel.normalize();
-                    // Move player to target
-                    if (this.quaternion) player.quaternion.slerp(this.quaternion, 0.1);
-                    player.position.add(vel.multiplyScalar(dt * speed));
-                } else {
-                    // Remove node from the path we calculated
-                    this.calculatedPath.shift();
-                    if (this.calculatedPath.length==0){
-                        if (this.npc){
-                            this.newPath(this.app.randomWaypoint);
-                        }else{
-                            this.action = 'idle';
-                        }
+            if (vel.lengthSq() > 0.1) {
+                vel.normalize();
+                // Move player to target
+                if (this.quaternion) player.quaternion.slerp(this.quaternion, 0.1);
+                player.position.add(vel.multiplyScalar(dt * speed));
+            } else {
+                // Remove node from the path we calculated
+                this.calculatedPath.shift();
+                if (this.calculatedPath.length==0){
+                    if (this.npc){
+                        this.newPath(this.app.randomWaypoint);
                     }else{
-                        const pt = this.calculatedPath[0].clone();
-                        pt.y = player.position.y;
-                        const quaternion = player.quaternion.clone();
-                        player.lookAt(pt);
-                        this.quaternion = player.quaternion.clone();
-                        player.quaternion.copy(quaternion); 
+                        this.action = 'idle';
                     }
+                }else{
+                    const pt = this.calculatedPath[0].clone();
+                    pt.y = player.position.y;
+                    const quaternion = player.quaternion.clone();
+                    player.lookAt(pt);
+                    this.quaternion = player.quaternion.clone();
+                    player.quaternion.copy(quaternion); 
                 }
-            }else{
-                if (this.npc && !this.dead) this.newPath(this.app.randomWaypoint);
             }
+        }else{
+            if (this.npc && !this.dead) this.newPath(this.app.randomWaypoint);
         }
     }
 }
