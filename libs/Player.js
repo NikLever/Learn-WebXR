@@ -20,13 +20,12 @@ class Player{
         
         if (this.npc) this.dead = false;
 		
+        this.speed = options.speed;
+        this.app = options.app;
+        
         if (options.app.pathfinder){
             this.pathfinder = options.app.pathfinder;
-
-            this.speed = options.speed;
-            this.app = options.app;
             this.ZONE = options.app.ZONE;
-
             this.navMeshGroup = this.pathfinder.getGroup(this.ZONE, this.object.position);	
         }
 		
@@ -55,14 +54,21 @@ class Player{
 	}
 	
 	newPath(pt){
+        const player = this.object;
+        
         if (this.pathfinder===undefined){
-            this.calculatedPath = [ pt ];
+            this.calculatedPath = [ pt.clone() ];
+            //Calculate target direction
+            pt.y = player.position.y;
+            const quaternion = player.quaternion.clone();
+            player.lookAt(pt);
+            this.quaternion = player.quaternion.clone();
+            player.quaternion.copy(quaternion); 
             this.action = 'walk';
             return;
         }
         
-		console.log(`New path to ${pt.x.toFixed(1)}, ${pt.y.toFixed(2)}, ${pt.z.toFixed(2)}`);
-		const player = this.object;
+		console.log(`New path to ${pt.x.toFixed(1)}, ${pt.y.toFixed(2)}, ${pt.z.toFixed(2)}`);	
 
 		const targetGroup = this.pathfinder.getGroup(this.ZONE, pt);
 		const closestTargetNode = this.pathfinder.getClosestNode(pt, this.ZONE, targetGroup);
@@ -163,19 +169,29 @@ class Player{
             const targetPosition = this.calculatedPath[0];
 
             const vel = targetPosition.clone().sub(player.position);
-
-            if (vel.lengthSq() > 0.1) {
+            
+            let pathLegComplete = (vel.lengthSq()<0.01);
+            
+            if (!pathLegComplete) {
+                //Get the distance to the target before moving
+                const prevDistanceSq = player.position.distanceToSquared(targetPosition);
                 vel.normalize();
                 // Move player to target
                 if (this.quaternion) player.quaternion.slerp(this.quaternion, 0.1);
                 player.position.add(vel.multiplyScalar(dt * speed));
-            } else {
+                //Get distance after moving, if greater then we've overshot and this leg is complete
+                const newDistanceSq = player.position.distanceToSquared(targetPosition);
+                pathLegComplete = (newDistanceSq > prevDistanceSq);
+            } 
+            
+            if (pathLegComplete){
                 // Remove node from the path we calculated
                 this.calculatedPath.shift();
                 if (this.calculatedPath.length==0){
                     if (this.npc){
                         this.newPath(this.app.randomWaypoint);
                     }else{
+                        player.position.copy( targetPosition );
                         this.action = 'idle';
                     }
                 }else{

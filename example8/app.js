@@ -154,7 +154,7 @@ class App{
 			// called while loading is progressing
 			function ( xhr ) {
 
-				self.loadingBar.progress = (xhr.loaded / xhr.total) * 0.5;
+				self.loadingBar.progress = (xhr.loaded / xhr.total) * 0.33;
 				
 			},
 			// called when loading has errors
@@ -225,12 +225,12 @@ class App{
 					
 				});
 					
-				self.initGame();
+                self.loadAudio();
 			},
 			// called while loading is progressing
 			function ( xhr ) {
 
-				self.loadingBar.progress = (xhr.loaded / xhr.total) * 0.5 + 0.5;
+				self.loadingBar.progress = (xhr.loaded / xhr.total) * 0.33 + 0.33;
 
 			},
 			// called when loading has errors
@@ -242,6 +242,73 @@ class App{
 		);
 	}
 	
+    loadAudio(){
+        
+        if (this.audioListener===undefined){
+            this.audioListener = new THREE.AudioListener();
+            // add the listener to the camera
+            this.camera.add( this.audioListener );
+            this.sounds = {};
+
+            this.audio = {
+                index: 0,
+                names:["ambient", "shot", "snarl", "swish"]
+            }
+        }
+        
+        const name = this.audio.names[this.audio.index];
+        
+        const loader = new THREE.AudioLoader();
+        const self = this;
+        
+        // load a resource
+        loader.load(
+            // resource URL
+            `sfx/${name}.mp3`,
+
+            // onLoad callback
+            function ( audioBuffer ) {
+                // set the audio object buffer to the loaded object
+                let snd;
+                if ( name==='snarl'){
+                    snd = new THREE.PositionalAudio(self.audioListener);
+                }else{
+                    snd = new THREE.Audio( self.audioListener );
+                    self.scene.add(snd);
+                    if (name==='ambient'){
+                        snd.setLoop( true );
+	                    snd.setVolume( 0.5 );
+                    }
+                }
+                snd.setBuffer( audioBuffer );
+
+                // play the audio
+                if (name==='ambient') snd.play();
+                
+                self.sounds[name] = snd;
+                
+                self.audio.index++;
+                
+                if (self.audio.index >= self.audio.names.length ){
+                    delete self.audio;
+                    self.initGame();
+                }else{
+                    self.loadAudio();
+                }
+            },
+
+            // onProgress callback
+            function ( xhr ) {
+                self.loadingBar.progress = (xhr.loaded / xhr.total) * 0.85 + 0.66 + self.audio.index*0.85;
+            },
+
+            // onError callback
+            function ( err ) {
+                console.log( 'An error happened' );
+            }
+        );    
+    }
+    
 	cloneGLTF(gltf){
 	
 		const clone = {
@@ -409,6 +476,7 @@ class App{
                 this.fred.navMeshGroup = this.pathfinder.getGroup(this.ZONE, this.fred.object.position);
 				if (this.pathLines) this.scene.remove(this.pathLines);
 				if (this.calculatedPath) this.calculatedPath.length = 0;
+                this.sounds.swish.play();
             }else{
                 this.fred.newPath(this.movePosition);
             }
@@ -418,7 +486,12 @@ class App{
         if (this.ghoulTarget){
             const ghouls = this.ghouls.filter( (npc) => { return npc.object.children[1] === this.ghoulTarget});
             if (ghouls.length>0){
+                this.sounds.shot.play();
                 const ghoul = ghouls[0];
+                setTimeout( ()=>{
+                    ghoul.add( self.sounds.snarl );
+                    self.sounds.snarl.play();
+                }, 200);
                 ghoul.action = 'die';
                 ghoul.dead = true;
                 ghoul.calculatedPath = null;

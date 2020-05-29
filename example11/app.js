@@ -38,15 +38,29 @@ class App{
         
         const self = this;
 
+        this.hitTestSourceRequested = false;
+        this.hitTestSource = null;
+        this.workingVec3 = new THREE.Vector3();
+        
+        this.reticle = new THREE.Mesh(
+            new THREE.RingBufferGeometry( 0.15, 0.2, 32 ).rotateX( - Math.PI / 2 ),
+            new THREE.MeshBasicMaterial()
+        );
+        this.reticle.matrixAutoUpdate = false;
+        this.reticle.visible = false;
+        this.scene.add( this.reticle );
+        
         function onSelect() {
             if (self.knight===undefined) return;
-            if (self.knight.object.visible){
-                const targetPos = new THREE.Vector3().setFromMatrixPosition(self.controller.matrixWorld);
-                self.knight.newPath(targetPos);
-            }else{
-                self.knight.object.position.set( 0, 0, - 0.3 ).applyMatrix4( self.controller.matrixWorld );
-                //self.knight.object.quaternion.setFromRotationMatrix( self.controller.matrixWorld );
-                self.knight.object.visible = true;
+            
+            if (self.reticle.visible){
+                if (self.knight.object.visible){
+                    self.workingVec3.setFromMatrixPosition( self.reticle.matrix );
+                    self.knight.newPath(self.workingVec3);
+                }else{
+                    self.knight.object.position.setFromMatrixPosition( self.reticle.matrix );
+                    self.knight.object.visible = true;
+                }
             }
         }
 
@@ -85,7 +99,7 @@ class App{
 				
 				const options = {
 					object: object,
-					speed: 3,
+					speed: 0.5,
 					assetsPath: self.assetsPath,
 					loader: loader,
                     animations: gltf.animations,
@@ -99,11 +113,11 @@ class App{
                 self.knight.object.visible = false;
 				
 				self.knight.action = 'Dance';
-				const scale = 0.0005;
+				const scale = 0.005;
 				self.knight.object.scale.set(scale, scale, scale); 
 				
                 self.loadingBar.visible = false;
-                self.renderer.setAnimationLoop( () => { self.render(); } );
+                self.renderer.setAnimationLoop( (timestamp, frame) => { self.render(timestamp, frame); } );
 			},
 			// called while loading is progressing
 			function ( xhr ) {
@@ -120,11 +134,66 @@ class App{
 		);
 	}		
     
-	render( ) {
+	render( timestamp, frame ) {
         const dt = this.clock.getDelta();
         if (this.knight) this.knight.update(dt);
-        this.renderer.render( this.scene, this.camera );
 
+        const self = this;
+        
+        if ( frame ) {
+
+            const referenceSpace = this.renderer.xr.getReferenceSpace();
+            const session = this.renderer.xr.getSession();
+
+            if ( this.hitTestSourceRequested === false ) {
+
+                session.requestReferenceSpace( 'viewer' ).then( function ( referenceSpace ) {
+
+                    session.requestHitTestSource( { space: referenceSpace } ).then( function ( source ) {
+
+                        self.hitTestSource = source;
+
+                    } );
+
+                } );
+
+                session.addEventListener( 'end', function () {
+
+                    self.hitTestSourceRequested = false;
+                    self.hitTestSource = null;
+
+                } );
+
+                this.hitTestSourceRequested = true;
+
+            }
+
+            if ( this.hitTestSource ) {
+
+                const hitTestResults = frame.getHitTestResults( this.hitTestSource );
+
+                if ( hitTestResults.length ) {
+
+                    const hit = hitTestResults[ 0 ];
+
+                    this.reticle.visible = true;
+                    this.reticle.matrix.fromArray( hit.getPose( referenceSpace ).transform.matrix );
+
+                } else {
+
+                    this.reticle.visible = false;
+
+                }
+
+            }
+
+        }
+
+        this.renderer.render( this.scene, this.camera );
+        
+        if (this.knight.calculatedPath && this.knight.calculatedPath.length>0){
+            console.log( `path:${this.knight.calculatedPath[0].x.toFixed(2)}, ${this.knight.calculatedPath[0].y.toFixed(2)}, ${this.knight.calculatedPath[0].z.toFixed(2)} position: ${this.knight.object.position.x.toFixed(2)}, ${this.knight.object.position.y.toFixed(2)}, ${this.knight.object.position.z.toFixed(2)}`);
+        }
     }
 }
 
