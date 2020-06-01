@@ -1,6 +1,6 @@
 import * as THREE from '../libs/three/three.module.js';
 import { ARButton } from '../libs/three/jsm/ARButton.js';
-import { XREngine } from '../libs/XREngine.js';
+import { XREngine } from '../libs/XRWorldMeshes.js';
 
 class App{
 	constructor(){
@@ -28,9 +28,12 @@ class App{
 		this.renderer.xr.enabled = true;
 		container.appendChild( this.renderer.domElement );
 		
-		document.body.appendChild( ARButton.createButton( this.renderer, { requiredFeatures: [ 'hit-test', 'worldSensing' ] } ) );
+		document.body.appendChild( ARButton.createButton( this.renderer, { requiredFeatures: [ 'hit-test' ] } ) );
         
         this.initScene();
+        
+        this.sessionNeedsInitialising = true;
+        this.hitTestSource = null;
         
         const self = this;
 
@@ -41,8 +44,6 @@ class App{
         this.controller = this.renderer.xr.getController( 0 );
         this.controller.addEventListener( 'select', onSelect );
         this.scene.add( this.controller );
-        
-        this.sessionN
         
         this.renderer.setAnimationLoop((timestamp, frame)=>{ self.render(timestamp, frame)});
 		
@@ -84,47 +85,21 @@ class App{
     }
     
     updateScene(frame){
-        if (this.sessionNeedsInitialising){
-                
-        }
-        
-        const worldInfo = frame.worldInformation;
+        const referenceSpace = this.renderer.xr.getReferenceSpace();
+        const session = this.renderer.xr.getSession();
         
         const self = this;
-        
-        this.engine.objectsSeen = false;
-        
-        if(worldInfo.estimatedLight){
-            let ambientIntensity = worldInfo.estimatedLight.ambientIntensity
-            this.lights.ambient.intensity = ambientIntensity;
-            this.lights.light.intensity = ambientIntensity * 0.5;
-        }
-        
-        if(worldInfo.meshes){
-            worldInfo.meshes.forEach(worldMesh => {
-                const object = meshMap.get(worldMesh.uid);
-            }); 
-        }
-    }
-    
-	render( timestamp, frame ) {
-        if (frame) this.updateScene(frame);         
-        this.renderer.render( this.scene, this.camera );
-    }
-}
 
-export { App };
+        if ( this.sessionNeedsInitialising ) {
 
+            session.requestReferenceSpace( 'viewer' ).then( function ( referenceSpace ) {
 
+                session.requestHitTestSource( { space: referenceSpace } ).then( function ( source ) {
 
-            
-            
-            
+                    self.hitTestSource = source;
 
-    /*        function handleUpdateNode(worldMesh, object) {
-                object.seen = true
+                } );
 
-<<<<<<< HEAD
             } ); 
             
             // initialize world sensing
@@ -135,342 +110,61 @@ export { App };
                 meshDetectionState : {
                     enabled : true,
                     normals: true
-=======
-                // we don't need to do anything if the timestamp isn't updated
-                if (worldMesh.timeStamp <= object.ts) {
-                    return;
                 }
+            });
 
-                if (worldMesh.vertexCountChanged) {
-                    let newMesh = newMeshNode(worldMesh)
-                    object.threeMesh.geometry.dispose()
-                    object.node.remove(object.threeMesh)
-                    object.node.add(newMesh)
-                    object.threeMesh = newMesh
-                } else {
-                    if (worldMesh.vertexPositionsChanged) {
-                        let position = object.threeMesh.geometry.attributes.position
-                        if (position.array.length != worldMesh.vertexPositions.length) {
-                            console.error("position and vertex arrays are different sizes", position, worldMesh)
-                        }
-                        position.setArray(worldMesh.vertexPositions);
-                        position.needsUpdate = true;
-                    }
-                    if (worldMesh.textureCoordinatesChanged) {
-                        let uv = object.threeMesh.geometry.attributes.uv
-                        if (uv.array.length != worldMesh.textureCoordinates.length) {
-                            console.error("uv and vertex arrays are different sizes", uv, worldMesh)
-                        }
-                        uv.setArray(worldMesh.textureCoordinates);
-                        uv.needsUpdate = true;
-                    }
-                    if (worldMesh.triangleIndicesChanged) {
-                        let index = object.threeMesh.geometry.index
-                        if (index.array.length != worldMesh.triangleIndices) {
-                            console.error("uv and vertex arrays are different sizes", index, worldMesh)
-                        }
-                        index.setArray(worldMesh.triangleIndices);
-                        index.needsUpdate = true;
-                    }
-                    if (worldMesh.vertexNormalsChanged && worldMesh.vertexNormals.length > 0) {
-                        // normals are optional
-                        let normals = object.threeMesh.geometry.attributes.normals
-                        if (normals.array.length != worldMesh.vertexNormals) {
-                            console.error("uv and vertex arrays are different sizes", normals, worldMesh)
-                        }
-                        normals.setArray(worldMesh.vertexNormals);
-                        normals.needsUpdate = true;
-                    }
->>>>>>> 19b3b107844be6610293752013570704148cd122
-                }
+            session.addEventListener( 'end', function () {
+
+                self.sessionNeedsInitialising = true;
+                self.hitTestSource = null;
+                self.xrWorldMeshes.clearAll();
+
+            } );
+
+            this.sessionNeedsInitialising = false;
+            
+            this.xrWorldMeshes = new XRWorldMeshes();
+
+        }
+
+        if ( this.hitTestSource ) {
+
+            const hitTestResults = frame.getHitTestResults( this.hitTestSource );
+
+            if ( hitTestResults.length ) {
+
+                const hit = hitTestResults[ 0 ];
+
+                this.reticle.visible = true;
+                this.reticle.matrix.fromArray( hit.getPose( referenceSpace ).transform.matrix );
+
+            } else {
+
+                this.reticle.visible = false;
+
             }
 
-            function handleRemoveNode(object) {
-                object.threeMesh.geometry.dispose()
-                engine.removeAnchoredNode(object.node);
-                meshMap.delete(object.worldMesh.uid)
+        }
+        
+        const worldInfo = frame.worldInformation;
+        
+        if (worldInfo){
+            if(worldInfo.estimatedLight){
+                let ambientIntensity = worldInfo.estimatedLight.ambientIntensity
+                this.lights.ambient.intensity = ambientIntensity;
+                this.lights.light.intensity = ambientIntensity * 0.5;
             }
 
-            function handleNewNode(worldMesh) {
-                let worldMeshGroup = new THREE.Group();
-                var mesh = null;
-
-                mesh = newMeshNode(worldMesh)
-
-                worldMeshGroup.add(mesh)
-
-                var axesHelper = engine.createAxesHelper([0.1,0.1,0.1])
-                worldMeshGroup.add( axesHelper );
-                
-                //worldMesh.node = worldMeshGroup;
-                engine.addAnchoredNode(worldMesh, worldMeshGroup)
-
-                meshMap.set(worldMesh.uid, {
-                    ts: worldMesh.timeStamp, 
-                    worldMesh: worldMesh, 
-                    node: worldMeshGroup, 
-                    seen: true, 
-                    threeMesh: mesh
-                })
+            if(worldInfo.meshes){
+                this.xrWorldMeshes.update( worldInfo.meshes ); 
             }
+        }
+    }
+    
+	render( timestamp, frame ) {
+        if (frame) this.updateScene(frame);         
+        this.renderer.render( this.scene, this.camera );
+    }
+}
 
-            function newMeshNode(worldMesh) {
-                let edgeColor, polyColor
-                if (worldMesh instanceof XRFaceMesh) {
-                    edgeColor = '#999999'
-                    polyColor = '#999900'
-                } else {
-                    edgeColor = '#11FF11'
-                    polyColor = '#009900'
-                }
-
-                let mesh = new THREE.Group();
-                let geometry = new THREE.BufferGeometry()
-
-                let indices = new THREE.BufferAttribute(worldMesh.triangleIndices, 1)
-                indices.dynamic = true
-                geometry.setIndex(indices)
-                
-                let verticesBufferAttribute = new THREE.BufferAttribute( worldMesh.vertexPositions, 3 )
-                verticesBufferAttribute.dynamic = true
-                geometry.addAttribute( 'position', verticesBufferAttribute );
-
-                let uvBufferAttribute = new THREE.BufferAttribute( worldMesh.textureCoordinates, 2 )
-                uvBufferAttribute.dynamic = true
-                geometry.addAttribute( 'uv', uvBufferAttribute );
-
-                if (worldMesh.vertexNormals.length > 0) {
-                    let normalsBufferAttribute = new THREE.BufferAttribute( worldMesh.vertexNormals, 3 )
-                    normalsBufferAttribute.dynamic = true
-                    geometry.addAttribute( 'normal', normalsBufferAttribute );
-                } else {
-                    geometry.computeVertexNormals()
-                }
-
-                // transparent mesh
-                var wireMaterial = new THREE.MeshPhongMaterial({color: edgeColor, wireframe: true})
-                var material = new THREE.MeshPhongMaterial({color: polyColor, transparent: true, opacity: 0.25})
-
-                mesh.add(new THREE.Mesh(geometry, material))
-                mesh.add(new THREE.Mesh(geometry, wireMaterial))
-
-                mesh.geometry = geometry;  // for later use
-
-                //worldMesh.mesh = mesh;
-                return mesh
-            }
-
-            // handle hit testing slightly differently than other samples, since we're doing
-            // it per frame.  The "boiler plate" code below is slightly different, setting 
-            // requestNextHit on tap instead of executing the hit test.  The custom XREngineHits
-            // does a hit test each frame if the previous one has resolved
-            function handleHitResults(hits) {
-                let size = 0.05;
-                if (hits.length > 0) {
-                    let hit = hits[0]
-
-					session.requestFrameOfReference('head-model').then(headFrameOfReference => {
-                        // convert hit matrices from head to eye level coordinate systems
-                        headFrameOfReference.getTransformTo(eyeLevelFrameOfReference, workingMatrix)
-                        mat4.multiply(workingMatrix, workingMatrix, hit.hitMatrix)
-
-                        const node = reticleParent
-                        node.matrix.fromArray(workingMatrix)
-                        reticleParent.visible = true   // it starts invisible
-                        reticle.material.color = reticleTrackedColor
-
-                        node.updateMatrixWorld(true)
-                    })
-                } else {
-                    reticle.material.color = reticleNotTrackedColor
-                }
-                requestNextHit = true
-            }
-
-            class XREngineHits extends XREngine {
-                endFrame(){
-                    if (requestNextHit) {
-                        requestNextHit = false
-
-						session.requestFrameOfReference('head-model').then(headFrameOfReference => {
-                            session.requestHitTest(savedOrigin, savedDirection, headFrameOfReference)
-                                .then(handleHitResults)
-                                .catch(err => {
-                                    console.error('Error testing hits', err)
-                                })
-                        })
-                    }
-                }
-            }
-
-
-            ////////////////////////////////////////////////////
-            ////////////////////////////////////////////////////
-            // BOILER PLATE.  Can you feel the plates boiling?
-            //
-            // There are slight differences between examples but largely this code is similar
-            //
-            // Create the output context where the XRSession will place composited renders
-            const xrCanvas = document.createElement('canvas')
-            xrCanvas.setAttribute('class', 'xr-canvas')
-            const xrContext = xrCanvas.getContext('xrpresent')
-            if(!xrContext){
-                console.error('No XR context', xrCanvas)
-            }
-
-            // get the XR Device
-            navigator.xr.requestDevice().then(xrDevice => {
-                device = xrDevice
-            }).catch(err => {
-            })
-
-            document.getElementById('description').addEventListener('touchstart', hideMe, {capture: true})
-            function hideMe(event) { 
-                event.target.style.display = 'none' 
-                event.stopPropagation()
-            }
-
-            document.getElementById('go-button').addEventListener('click', handleStartSessionRequest, true)
-            document.getElementById('go-button').addEventListener('touchstart', handleGoButtonTouch, true)
-            function handleGoButtonTouch(event) { 
-                event.stopPropagation()
-            }
-
-            // handle input events from the XRInputManager
-            const inputManager = new XRInputManager(handleXRInput)
-            function handleXRInput(eventName, details){
-                switch(eventName){
-                    case 'normalized-touch':
-                        hitTestWithScreenCoordinates(...details.normalizedCoordinates)
-                        break
-                    default:
-                        console.error('unknown xr input event', eventName, details)
-                        break
-                }
-            }
-
-            function hitTestWithScreenCoordinates(normalizedX, normalizedY){
-                if(session === null){
-                    console.log('No session for hit testing')
-                    return
-                }
-
-                // Convert the screen coordinates into head-model origin/direction for hit testing
-                const [origin, direction] = 
-                XRInputManager.convertScreenCoordinatesToRay(normalizedX, normalizedY, 
-                                                            engine.camera.projectionMatrix)
-                savedOrigin = origin
-                savedDirection = direction
-
-                requestNextHit = true
-            }
-
-            /////////////////////
-            // Session startup / shutdown
-            function handleStartSessionRequest(ev){
-                if(device === null){
-                    console.error('No xr device')
-                    return
-                }
-
-                if (!session) {
-                    device.requestSession({ 
-                        outputContext: xrContext,
-                        worldSensing: true  
-                    }).then(handleSessionStarted)
-                        .catch(err => {
-                            console.error('Session setup error', err)
-                        })
-                    document.getElementById('go-button').innerText = "End"
-                    document.getElementById('go-button').style.display = 'none' 
-                } else {
-                    session.end()
-                    handleSessionEnded();
-                    reticleParent.visible = false   // it starts invisible
-                    document.getElementById('description').style.display = 'block' 
-					document.getElementById('go-button').style.display = "block"
-                    document.getElementById('go-button').innerText = "Go"
-                }
-            }
-
-            function handleSessionEnded() {	
-                session = null
-            }
-
-            function handleSessionStarted(xrSession){
-                session = xrSession
-                document.body.insertBefore(xrCanvas, document.body.firstChild)
-
-                let sensingState = xrSession.updateWorldSensingState({
-                    illuminationDetectionState : {
-                        enabled : true
-                    },
-                    meshDetectionState : {
-                        enabled : true,
-                        normals: true
-                    }
-                })
-
-                // Create the context where we will render our 3D scene
-                const canvas = document.createElement('canvas')
-                var glContext = canvas.getContext('webgl', {
-                    compatibleXRDevice: device
-                })
-                if(!glContext) throw new Error('Could not create a webgl context')
-
-                // Set up the base layer
-                session.baseLayer = new XRWebGLLayer(session, glContext)
-
-                // Create a simple test scene and renderer
-                // The engine's scene is in the eye-level coordinate system 
-                // Our custom engine class does hit testing at the end of each rAF 
-                engine = new XREngineHits(canvas, glContext)
-
-				createRootNode().then(() => {
-					// Kick off rendering
-					session.requestAnimationFrame(handleAnimationFrame)
-				})
-
-				initializeScene()
-			}
-
-			async function createRootNode() {
-				let headFrameOfReference = await session.requestFrameOfReference('head-model')
-				eyeLevelFrameOfReference = await session.requestFrameOfReference('eye-level')
-
-				// get the location of the device, and use it to create an 
-				// anchor with the identity orientation
-				headFrameOfReference.getTransformTo(eyeLevelFrameOfReference, workingMatrix)
-				mat4.getTranslation(workingVec3, workingMatrix)
-				mat4.fromTranslation(workingMatrix, workingVec3)
-
-				let anchor = await session.addAnchor(workingMatrix, eyeLevelFrameOfReference)
-				engine.addAnchoredNode(anchor, engine.root)
-				
-				return true
-			}
-
-            ////////////////
-            // render loop			
-            function handleAnimationFrame(t, frame){
-                updateScene(frame)
-                if(!session || session.ended) return
-                session.requestAnimationFrame(handleAnimationFrame)
-
-                let pose = frame.getDevicePose(eyeLevelFrameOfReference)
-                if(!pose){
-                    console.log('No pose')
-                    return
-                }
-
-                engine.startFrame()
-                for (let view of frame.views) {
-					engine.preRender(
-						session.baseLayer.getViewport(view),
-						view.projectionMatrix,
-						pose.getViewMatrix(view)
-					)
-					engine.render()
-                }
-                engine.endFrame()
-            }*/
+export { App };
