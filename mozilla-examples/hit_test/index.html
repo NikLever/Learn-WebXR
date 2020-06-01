@@ -1,0 +1,252 @@
+<html>
+	<!-- Any copyright is dedicated to the Public Domain.
+			http://creativecommons.org/publicdomain/zero/1.0/
+	-->
+	<head>
+		<title>Hit test example</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<script src="../libs/three/three.min.js"></script>
+		<link rel="stylesheet" href="../common.css"/>
+	</head>
+	<body>
+		<div id="description">
+			<h2>Hit Test Anchors</h2>
+			<p>Anchor boxes by create XRAnchors from XRHitTest results.</p>
+		</div>
+		<button type=button id=go-button disabled>Go</button>
+		<script type=module>
+			// some dependencies and utilities
+			import * as mat4 from '../libs/gl-matrix/mat4.js';
+			import * as vec3 from '../libs/gl-matrix/vec3.js';
+
+			import XREngine from '../XREngine.js';
+
+			let session = null;
+			let viewerReferenceSpace = null;
+			let localReferenceSpace = null;
+			let engine = null;
+
+			let hitTestSource = null;
+			let inputSource = null;
+			let hitTestSourceFrameNum = 0;
+			let isSelecting = false;
+			
+			// temporary working variables
+			const workingMatrix = mat4.create();
+			const workingVec3 = vec3.create();
+
+			const goButton = document.getElementById('go-button');
+
+			const initXR = () => {
+				if (navigator.xr) {
+					navigator.xr.isSessionSupported('immersive-ar').then(supported => {
+						if (supported) {
+							goButton.disabled = false;
+							goButton.addEventListener('click', onButtonClick);
+						} else {
+							goButton.initText = 'No WebXR AR support';
+						}
+					});
+				} else {
+					goButton.initText = 'No WebXR support';
+				}
+			};
+
+			const onButtonClick = event => {
+				if (!session) {
+					navigator.xr.requestSession('immersive-ar', {requiredFeatures: ['hit-test']})
+						.then(xrSession => {
+							initSession(xrSession);
+							goButton.innerText = 'End';
+						}).catch(err => {
+							console.error('Session setup error', err);
+						});
+				} else {
+					session.end();
+				}
+			};
+
+			const initSession = async xrSession => {
+				session = xrSession;
+				session.addEventListener('end', onSessionEnd);
+				session.addEventListener('select', onSelect);
+				session.addEventListener('inputsourceschange', onInputSourcesChange);
+
+				localReferenceSpace = await session.requestReferenceSpace('local');
+				viewerReferenceSpace = await session.requestReferenceSpace('viewer');
+
+				// Create the context where we will render our 3D scene
+				const canvas = document.createElement('canvas');
+				const context = canvas.getContext('webgl', {
+					xrCompatible: true
+				});
+
+				if (!context) throw new Error('Could not create a webgl context');
+
+				// Set up the base layer
+				session.updateRenderState({baseLayer: new XRWebGLLayer(session, context)});
+
+				// Create a simple test scene and renderer
+				// The engine's scene is in the eye-level coordinate system 
+				engine = new XREngine(canvas, context);
+
+				// get the location of the device, and use it to create an 
+				// anchor with the identity orientation
+				session.requestAnimationFrame(async (t, frame) => {
+					mat4.copy(workingMatrix, frame.getPose(localReferenceSpace, viewerReferenceSpace).transform.matrix);
+					mat4.getTranslation(workingVec3, workingMatrix);
+					mat4.fromTranslation(workingMatrix, workingVec3);
+
+					const anchor = await frame.addAnchor(workingMatrix, localReferenceSpace);
+					engine.addAnchoredNode(anchor, engine.root);
+				
+					// Kick off rendering
+					session.requestAnimationFrame(handleAnimationFrame);
+				});
+
+				// initialize scene
+
+				engine.addAmbientLight();
+				engine.addDirectionalLight();
+
+				// Add a box and axis at the origin of the eye-level coordinate system
+				// for debugging by uncommenting these lines
+				// engine.addBox([0, 0, 0], [0.025, 0.025, 0.025], 0x44ff44)
+				// engine.addAxesHelper([0,0,0], [0.2,0.2,0.2])				
+			};
+
+			const onSessionEnd = event => {
+				clearHitTestSource();
+				session = null;
+				inputSource = null;
+				viewerReferenceSpace = null;
+				localReferenceSpace = null;
+				goButton.innerText = 'Go';
+			};
+
+			const onInputSourcesChange = event => {
+				if (inputSource && event.removed.includes(inputSource)) {
+					inputSource = null;
+				}
+				if (!inputSource && event.added.length > 0) {
+					inputSource = event.added[0];
+				}
+			};
+
+			const onSelect = event => {
+				clearHitTestSource();
+				isSelecting = true;
+			};
+
+			const clearHitTestSource = () => {
+				if (hitTestSource) {
+					hitTestSource.cancel();
+				}
+				hitTestSource = null;
+				hitTestSourceFrameNum = 0;
+			};
+
+			// Creates a box used to indicate the location of an anchor offset
+
+			const createBox = () => {
+				const group = new THREE.Group();
+				const geometry = new THREE.BoxBufferGeometry(0.1, 0.1, 0.1);
+				const color = new THREE.Color(0xffffff);
+				color.setHex(Math.random() * 0xffffff);
+				const material = new THREE.MeshPhongMaterial({color: color});
+				const mesh = new THREE.Mesh(geometry, material);
+				const outlineMaterial = new THREE.MeshBasicMaterial({color: 0x00ff00, side: THREE.BackSide});
+				const outlineMesh = new THREE.Mesh(geometry, outlineMaterial);
+
+				mesh.position.set(0, 0.05, 0);
+				outlineMesh.position.set(0, 0.05, 0);
+				outlineMesh.scale.multiplyScalar(1.05);
+
+				group.add(mesh);
+				group.add(outlineMesh);
+
+				return group;
+			};
+
+			// Create offset ray for hit test from the relative transform
+			// between viewerPose and inputPose. There may be a room to optimize.
+			const createOffsetRay = (viewerPose, inputPose) => {
+				const offsetMatrix = mat4.multiply(mat4.create(), viewerPose.transform.matrix, inputPose.transform.matrix);
+				const direction = vec3.fromValues(0.0, 0.0, -0.2);
+				vec3.transformMat4(direction, direction, offsetMatrix);
+				vec3.normalize(direction, direction);
+				const offsetDirection = {
+					x: direction[0],
+					y: direction[1],
+					z: direction[2],
+					w: 0.0
+				};
+				const offsetOrigin = {x: 0, y: 0, z: 0, w: 1.0};
+				return new XRRay(offsetOrigin, offsetDirection);
+			};
+
+			// render loop			
+
+			const handleAnimationFrame = (t, frame) => {
+				if (!session || session.ended) return;
+
+				session.requestAnimationFrame(handleAnimationFrame);
+
+				const viewerPose = frame.getViewerPose(localReferenceSpace);
+				if (!viewerPose) {
+					console.log('No viewer pose');
+					return;
+				}
+
+				// Create HitTest Source. Calculating offset ray from the relative transform
+				// between viewerPose and inputPose so we need to do in animation frame.
+				if (isSelecting && inputSource) {
+					const inputPose = frame.getPose(inputSource.targetRaySpace, localReferenceSpace);
+					const offsetRay = createOffsetRay(viewerPose, inputPose);
+					session.requestHitTestSource({space: viewerReferenceSpace, offsetRay: offsetRay}).then(xrHitTestSource => {
+						hitTestSource = xrHitTestSource;
+						hitTestSourceFrameNum = 0;
+					});
+					isSelecting = false;
+				}
+
+				if (hitTestSource) {
+					const results = frame.getHitTestResults(hitTestSource);
+					if (results.length > 0) {
+						const result = results[0];
+						const pose = result.getPose(localReferenceSpace);
+						if (pose) {
+							frame.addAnchor(pose.transform.matrix, localReferenceSpace).then(anchor => {
+								engine.addAnchoredNode(anchor, createBox());
+							}).catch(err => {
+								console.error('Error adding anchor', err);
+							});
+						}
+						clearHitTestSource();
+					} else {
+						hitTestSourceFrameNum++;
+						// Dispose hit test source if we don't get any hit test result
+						// in arbitary frame nums
+						if (hitTestSourceFrameNum > 2) {
+							clearHitTestSource();
+						}
+					}
+				}
+
+				engine.startFrame();
+				for (const view of viewerPose.views) {
+					engine.preRender(
+						session.renderState.baseLayer.getViewport(view),
+						view.projectionMatrix,
+						view.transform.matrix
+					);
+					engine.render();
+				}
+				engine.endFrame();
+			};
+
+			initXR();
+		</script>
+	</body>
+</html>

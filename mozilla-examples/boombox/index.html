@@ -1,0 +1,176 @@
+<html>
+	<!-- Any copyright is dedicated to the Public Domain.
+		http://creativecommons.org/publicdomain/zero/1.0/
+	-->
+	<head>
+		<title>Boombox</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<script src="../libs/three/three.min.js"></script>
+		<script src="../libs/three/loaders/GLTFLoader.js"></script>
+		<link rel="stylesheet" href="../common.css"/>
+	</head>
+	<body>
+		<div id="description">
+			<h2>Boombox</h2>
+			<p>Shows a boombox in a Panoramic photo environment.</p>
+		</div>
+		<button type=button id=go-button>Go</button>
+		<script type=module>
+			// some dependencies and utilities
+			import * as mat4 from '../libs/gl-matrix/mat4.js';
+			import * as vec3 from '../libs/gl-matrix/vec3.js';
+
+			import XREngine from '../XREngine.js';
+
+			let session = null;
+			let localReferenceSpace = null;
+			let viewerReferenceSpace = null;
+			let engine = null;
+
+			// temporary working variables
+			const workingMatrix = mat4.create();
+			const workingVec3 = vec3.create();
+
+			// start the textures and the boombox model loading immediately
+			const startGroup = new THREE.Group();
+
+			// Create the environment map
+			const path = '../textures/Park2/';
+			const format = '.jpg';
+			const envMap = new THREE.CubeTextureLoader().load([
+				path + 'posx' + format, path + 'negx' + format,
+				path + 'posy' + format, path + 'negy' + format,
+				path + 'posz' + format, path + 'negz' + format
+			]);
+			envMap.format = THREE.RGBFormat;
+
+			const loader = new THREE.GLTFLoader().setPath('../models/BoomBox/glTF-pbrSpecularGlossiness/');
+			loader.load( 'BoomBox.gltf', gltf => {
+				gltf.scene.scale.set(15, 15, 15);
+				gltf.scene.position.set(0, 0, -1);
+				gltf.scene.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
+
+				gltf.scene.traverse(node => {
+					if (node.material && (node.material.isMeshStandardMaterial || (node.material.isShaderMaterial && node.material.envMap !== undefined))){
+						node.material.envMap = envMap;
+						node.material.needsUpdate = true;
+					}
+				});
+
+				startGroup.add(gltf.scene);
+			}, undefined  /* progress callback */, e => {
+				console.error('could not load gltf', ...params);
+			});
+
+			const goButton = document.getElementById('go-button');
+
+			const initXR = () => {
+				if (navigator.xr) {
+					navigator.xr.isSessionSupported('immersive-ar').then(supported => {
+						if (supported) {
+							goButton.disabled = false;
+							goButton.addEventListener('click', onButtonClick);
+						} else {
+							goButton.initText = 'No WebXR AR support';
+						}
+					});
+				} else {
+					goButton.initText = 'No WebXR support';
+				}
+			};
+
+			const onButtonClick = event => {
+				if (!session) {
+					navigator.xr.requestSession('immersive-ar')
+						.then(xrSession => {
+							initSession(xrSession);
+							goButton.innerText = 'End';
+						}).catch(err => {
+							console.error('Session setup error', err);
+						});
+				} else {
+					session.end();
+				}
+			};
+
+			const initSession = async xrSession => {
+				session = xrSession;
+				session.addEventListener('end', onSessionEnd);
+
+				localReferenceSpace = await session.requestReferenceSpace('local');
+				viewerReferenceSpace = await session.requestReferenceSpace('viewer');
+
+				// Create the context where we will render our 3D scene
+				const canvas = document.createElement('canvas');
+				const context = canvas.getContext('webgl', {
+					xrCompatible: true
+				});
+
+				if (!context) throw new Error('Could not create a webgl context');
+
+				// Set up the base layer
+				session.updateRenderState({baseLayer: new XRWebGLLayer(session, context)});
+
+				// Create a simple test scene and renderer
+				// The engine's scene is in the eye-level coordinate system 
+				engine = new XREngine(canvas, context);
+
+				// get the location of the device, and use it to create an
+				// anchor with the identity orientation
+				session.requestAnimationFrame(async (t, frame) => {
+					mat4.copy(workingMatrix, frame.getPose(localReferenceSpace, viewerReferenceSpace).transform.matrix);
+					mat4.getTranslation(workingVec3, workingMatrix);
+					mat4.fromTranslation(workingMatrix, workingVec3);
+
+					const anchor = await frame.addAnchor(workingMatrix, localReferenceSpace);
+					engine.addAnchoredNode(anchor, engine.root);
+
+					// Kick off rendering
+					session.requestAnimationFrame(handleAnimationFrame);
+				});
+
+				// initialize scene
+
+				engine.addAmbientLight();
+				engine.addDirectionalLight();
+
+				engine.root.add(startGroup);
+				engine.scene.background = new THREE.Color(0x222222);
+				engine.scene.background = envMap;
+			};
+
+			const onSessionEnd = event => {
+				session = null;
+				viewerReferenceSpace = null;
+				localReferenceSpace = null;
+				goButton.innerText = 'Go';
+			};
+
+			const handleAnimationFrame = (t, frame) => {
+				if (!session || session.ended) return;
+
+				session.requestAnimationFrame(handleAnimationFrame);
+
+				const pose = frame.getViewerPose(localReferenceSpace);
+				if (!pose){
+					console.log('No pose');
+					return;
+				}
+
+				engine.startFrame()
+				for (const view of pose.views) {
+					engine.preRender(
+						session.renderState.baseLayer.getViewport(view),
+						view.projectionMatrix,
+						view.transform.matrix
+					);
+					engine.render();
+				}
+				engine.endFrame()
+			};
+
+			initXR();
+		</script>
+	</body>
+</html>
