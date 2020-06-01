@@ -1,0 +1,390 @@
+<html>
+	<!-- Any copyright is dedicated to the Public Domain.
+		http://creativecommons.org/publicdomain/zero/1.0/
+	-->
+	<head>
+		<title>ARKit face tracking example</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<link rel="stylesheet" href="../common.css"/>
+		<script src="../libs/three/three.js"></script>
+		<script src="../libs/three/loaders/GLTFLoader.js"></script>
+		<script src="../libs/dat.gui.min.js"></script>
+		<style>
+			.dg { 
+				margin-top:30px !important;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="description">
+			<h2>ARKit face tracking Example</h2>
+			<p>This detects and tracks your face using ARKit and places a 3D  model on it.
+			(Glasses model by <a href="https://sketchfab.com/models/5c78f100eea749c895d69fe2ed728197#">person-x</a>)</p>
+		</div>
+		<button type="button" id="go-button">Go</button>
+		<script type="module">
+			// some dependencies and utilities
+			import * as mat4 from '../libs/gl-matrix/mat4.js';
+			import * as vec3 from '../libs/gl-matrix/vec3.js';
+
+			import XREngine from '../XREngine.js';
+
+			let session = null;
+			let localReferenceSpace = null;
+			let viewerReferenceSpace = null;
+			let engine = null;
+
+			const meshMap = new Map();
+
+			// temporary working variables
+			const workingMatrix = mat4.create();
+			const workingVec3 = vec3.create();
+
+			let ambientLight = null;
+			let directionalLight = null;
+
+			// add dat.GUI to the left HUD.  We hid it in stereo viewing, so we don't need to
+			// figure out how to duplicate it.
+			const params = {
+				face: 'occlusion',
+				ducky: false,
+				glasses: true
+			};
+
+			const gui = new dat.GUI({autoPlace: false});
+			gui.add(params, 'face', {'Occlusion Only': 'occlusion', 'Oclussion & Mesh': 'both', 'Transparent Mesh': 'transparent'});
+			gui.add(params, 'ducky');
+			gui.add(params, 'glasses');
+			gui.domElement.id = 'gui';
+			gui.open();
+			document.body.appendChild(gui.domElement);
+
+			let duckyCreated = false;
+			let glassesCreated = false;
+
+			let material = null;
+			let wireMaterial = null;
+
+			const ducky = new THREE.Group();
+			ducky.name = 'Duck group';
+			const loader = new THREE.GLTFLoader().setPath('./');
+			loader.load('DuckyMesh.glb',
+				gltf => {
+					const duckyNode = gltf.scene;
+					duckyNode.position.set(0, -0.25, -0.2);
+					duckyNode.scale.set(3,3,3);
+					ducky.add(duckyNode);
+					duckyCreated = true;
+				},
+				null,  // progress callback
+				e => {
+					console.error('could not load gltf', e);
+				}
+			);
+
+			loader.setPath('./glasses/');
+			const glasses = new THREE.Group();
+			glasses.name = 'Glasses group';
+			loader.load('glasses.gltf',
+				gltf => {
+					let glassesNode = gltf.scene;
+					glassesNode.position.set(0, 0.01, 0.06);
+					glassesNode.scale.set(0.0005,0.0005,0.0005);
+					glasses.add(glassesNode);
+					glassesCreated = true;
+				},
+				null,  // progress callback
+				e => {
+					console.error('could not load gltf', e);
+				}
+			);
+
+			const goButton = document.getElementById('go-button');
+
+			const initXR = () => {
+				if (navigator.xr) {
+					navigator.xr.isSessionSupported('immersive-ar', ['worldSensing']).then(supported => {
+						if (supported) {
+							goButton.disabled = false;
+							goButton.addEventListener('click', onButtonClick);
+						} else {
+							goButton.initText = 'No WebXR AR support';
+						}
+					});
+				} else {
+					goButton.initText = 'No WebXR support';
+				}
+			};
+
+			const onButtonClick = event => {
+				if (!session) {
+					navigator.xr.requestSession('immersive-ar', {requiredFeatures: ['worldSensing']})
+						.then(xrSession => {
+							initSession(xrSession);
+							goButton.innerText = 'End';
+						}).catch(err => {
+							console.error('Session setup error', err);
+						});
+				} else {
+					session.end();
+				}
+			};
+
+			const initSession = async xrSession => {
+				session = xrSession;
+				session.addEventListener('end', onSessionEnd);
+
+				localReferenceSpace = await session.requestReferenceSpace('local');
+				viewerReferenceSpace = await session.requestReferenceSpace('viewer');
+
+				// Create the context where we will render our 3D scene
+				const canvas = document.createElement('canvas');
+				const context = canvas.getContext('webgl', {
+					xrCompatible: true
+				});
+
+				if (!context) throw new Error('Could not create a webgl context');
+
+				session.updateWorldSensingState({
+					meshDetectionState: {
+						enabled: true
+					}
+				});
+
+				// Set up the base layer
+				session.updateRenderState({baseLayer: new XRWebGLLayer(session, context)});
+
+				// Create a simple test scene and renderer
+				// The engine's scene is in the eye-level coordinate system
+				// Our custom engine class does hit testing at the end of each rAF
+				engine = new XREngine(canvas, context);
+
+				// get the location of the device, and use it to create an
+				// anchor with the identity orientation
+				session.requestAnimationFrame(async (t, frame) => {
+					mat4.copy(workingMatrix, frame.getPose(localReferenceSpace, viewerReferenceSpace).transform.matrix);
+					mat4.getTranslation(workingVec3, workingMatrix);
+					mat4.fromTranslation(workingMatrix, workingVec3);
+
+					const anchor = await frame.addAnchor(workingMatrix, localReferenceSpace);
+					engine.addAnchoredNode(anchor, engine.root);
+
+					// Kick off rendering
+					session.requestAnimationFrame(handleAnimationFrame);
+				});
+
+				// initialize scene
+				ambientLight = engine.addAmbientLight();
+				directionalLight = engine.addDirectionalLight();
+
+				wireMaterial = new THREE.MeshPhongMaterial({color: '#999999', wireframe: true});
+				material = new THREE.MeshPhongMaterial({color: '#999900', transparent: true, opacity: 0.5});
+			};
+
+			const onSessionEnd = event => {
+				session = null;
+				viewerReferenceSpace = null;
+				localReferenceSpace = null;
+				goButton.innerText = 'Go';
+			};
+
+			// Called once per frame, before render, to give the app a chance to update this.scene
+			const updateScene = frame => {
+				frame.getGlobalLightEstimate().then(lightProbe => {
+					const ambientIntensity = lightProbe.indirectIrradiance; // @TODO: Fix me
+					ambientLight.intensity = ambientIntensity;
+					directionalLight.intensity = ambientIntensity * 0.5;
+				});
+
+				const worldInfo = frame.worldInformation;
+
+				if (worldInfo.meshes) {
+					meshMap.forEach(object => { object.seen = false; });
+					worldInfo.meshes.forEach(worldMesh => {
+						let object = meshMap.get(worldMesh.uid);
+						if (object) {
+							handleUpdateNode(worldMesh, object);
+						} else if (worldMesh instanceof XRFaceMesh) {
+							handleNewNode(worldMesh);
+							object = meshMap.get(worldMesh.uid);
+						}
+
+						if (object) {
+							if (params.ducky) {
+								if (ducky.parent != object.faceMesh) {
+									object.faceMesh.add(ducky);
+								}
+							} else {
+								object.faceMesh.remove(ducky);
+							}
+
+							if (params.glasses) {
+								if (glasses.parent != object.faceMesh) {
+									object.faceMesh.add(glasses);
+								}
+							} else {
+								object.faceMesh.remove(glasses);
+							}
+						}
+					});
+
+					if (material) {
+						if (params.face == "occlusion") {
+							material.colorWrite = false; // only update the depth
+							wireMaterial.colorWrite = false; // only update the depth
+							material.transparent = false;
+						} else if (params.face == "transparent") {
+							material.colorWrite = true; // only update the depth
+							wireMaterial.colorWrite = true; // only update the depth
+							material.transparent = true;
+						} else {
+							material.colorWrite = true; // only update the depth
+							wireMaterial.colorWrite = true; // only update the depth
+							material.transparent = false;
+						}
+					}
+
+					meshMap.forEach(object => {
+						if (!object.seen) {
+							handleRemoveNode(object);
+						}
+					});
+				}
+			};
+
+			const handleRemoveNode = object => {
+				object.geometry.dispose();
+				engine.removeAnchoredNode(object.faceMesh);
+				meshMap.delete(object.worldMesh.uid);
+			};
+
+			const handleUpdateNode = (worldMesh, object) => {
+				object.seen = true
+
+				// we don't need to do anything if the timestamp isn't updated
+				if (worldMesh.timeStamp <= object.ts) {
+					return;
+				}
+
+				let currentVertexIndex = 0;
+
+				if (worldMesh.vertexPositionsChanged) {
+					const position = object.geometry.attributes.position;
+					if (position.array.length !== worldMesh.vertexPositions.length) {
+						console.error("position and vertex arrays are different sizes", position, worldMesh);
+					}
+					position.setArray(worldMesh.vertexPositions);
+					position.needsUpdate = true;
+				}
+
+				if (worldMesh.vertexNormalsChanged && worldMap.vertexNormals.length > 0) {
+					// normals are optional
+					const normals = object.geometry.attributes.normals;
+					if (normals.array.length != worldMesh.vertexNormals) {
+						console.error("uv and vertex arrays are different sizes", normals, worldMesh);
+					}
+					normals.setArray(worldMesh.vertexNormals);
+					normals.needsUpdate = true;
+				}
+
+				/// these ones probably will not change while the face is tracked, but
+				/// for future changes to the underlying detector, keep them here
+				if (worldMesh.textureCoordinatesChanged) {
+					const uv = object.geometry.attributes.uv;
+					if (uv.array.length != worldMesh.textureCoordinates.length) {
+						console.error("uv and vertex arrays are different sizes", uv, worldMesh);
+					}
+					uv.setArray(worldMesh.textureCoordinates);
+					uv.needsUpdate = true;
+				}
+
+				if (worldMesh.triangleIndicesChanged) {
+					const index = object.geometry.index;
+					if (index.array.length != worldMesh.triangleIndices) {
+						console.error("uv and vertex arrays are different sizes", index, worldMesh);
+					}
+					index.setArray(worldMesh.triangleIndices);
+					index.needsUpdate = true;
+				}
+			}
+
+			const handleNewNode = worldMesh => {
+				const geometry = new THREE.BufferGeometry();
+
+				const indices = new THREE.BufferAttribute(worldMesh.triangleIndices, 1);
+				indices.dynamic = true;
+				geometry.setIndex(indices);
+
+				const verticesBufferAttribute = new THREE.BufferAttribute(worldMesh.vertexPositions, 3);
+				verticesBufferAttribute.dynamic = true;
+				geometry.addAttribute('position', verticesBufferAttribute);
+
+				const uvBufferAttribute = new THREE.BufferAttribute(worldMesh.textureCoordinates, 2);
+				uvBufferAttribute.dynamic = true;
+				geometry.addAttribute('uv', uvBufferAttribute);
+
+				if (worldMesh.vertexNormals.length > 0) {
+					const normalsBufferAttribute = new THREE.BufferAttribute(worldMesh.vertexNormals, 3);
+					normalsBufferAttribute.dynamic = true;
+					geometry.addAttribute('normal', normalsBufferAttribute);
+				} else {
+					geometry.computeVertexNormals();
+				}
+
+				const transparentMesh = new THREE.Group();
+
+				let tm = new THREE.Mesh(geometry, material);
+				tm.renderOrder = -2;
+				transparentMesh.add(tm);
+
+				tm = new THREE.Mesh(geometry, wireMaterial);
+				tm.renderOrder = -2;
+				transparentMesh.add(tm);
+
+				const faceMesh = new THREE.Group();
+				faceMesh.add(transparentMesh);
+
+				engine.addAnchoredNode(worldMesh, faceMesh);
+
+				meshMap.set(worldMesh.uid, {
+					ts: worldMesh.timeStamp,
+					worldMesh: worldMesh,
+					seen: true,
+					geometry: geometry,
+					faceMesh: faceMesh,
+					transparentMesh: transparentMesh,
+					threeMesh: transparentMesh
+				});
+			};
+
+			////////////////
+			// render loop
+			const handleAnimationFrame = (t, frame) => {
+				if (!session || session.ended) return;
+
+				updateScene(frame);
+				session.requestAnimationFrame(handleAnimationFrame);
+
+				const pose = frame.getViewerPose(localReferenceSpace);
+				if (!pose) {
+					console.log('No pose');
+					return;
+				}
+
+				engine.startFrame();
+				for (const view of pose.views) {
+					engine.preRender(
+						session.renderState.baseLayer.getViewport(view),
+						view.projectionMatrix,
+						view.transform.matrix
+					);
+					engine.render();
+				}
+				engine.endFrame();
+			};
+
+			initXR();
+		</script>
+	</body>
+</html>

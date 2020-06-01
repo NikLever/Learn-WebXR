@@ -1,0 +1,339 @@
+<html>
+  <!-- Any copyright is dedicated to the Public Domain.
+			  http://creativecommons.org/publicdomain/zero/1.0/
+	-->
+	<head>
+		<title>Hit test example</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<script src="../libs/three/three.min.js"></script>
+ 		<script module src="../../dist/webxr.js"></script>
+		<link rel="stylesheet" href="../common.css"/>
+	</head>
+	<body>
+		<div id="description">
+			<h2>Hit Test with Persistence</h2>
+			<h5>(click to dismiss)</h5>
+			<p>Find anchors by searching on tap events.</p>
+		</div>
+		<button type=button id=go-button>Go</button><br>
+		<button type=button id=get-button style="display: none">Get Map</button><br>
+		<button type=button id=set-button style="display: none">Set Map</button><br>
+		<script type=module>
+			// some dependencies and utilities
+			import * as mat4 from '../libs/gl-matrix/mat4.js'
+			import * as vec3 from '../libs/gl-matrix/vec3.js'
+
+			import XREngine from "../XREngine.js"
+			import XRInputManager from "../XRInputManager.js"
+
+			let device = null
+			let session = null
+			let eyeLevelFrameOfReference = null
+			let engine = null
+			
+			// temporary working variables
+			const workingMatrix = mat4.create()
+			const workingVec3 = vec3.create()
+
+			// for debugging, not for production use
+			let mapMessageEl = document.createElement('div')
+			mapMessageEl.style.position = 'absolute'
+			mapMessageEl.style.bottom = '30px'
+			mapMessageEl.style.left = '10px'
+			mapMessageEl.style.color = 'grey'
+			mapMessageEl.style['font-size'] = '16px'
+			document.body.appendChild(mapMessageEl)
+
+			// a saved map
+			var worldMap = null
+
+			function initializeScene(){
+				engine.addAmbientLight()
+				engine.addDirectionalLight()
+
+				// Add a box and axis at the origin of the eye-level coordinate system
+				// for debugging by uncommenting these lines
+				// engine.addBox([0, 0, 0], [0.025, 0.025, 0.025], 0x44ff44)
+				// engine.addAxesHelper([0,0,0], [0.2,0.2,0.2])				
+			}
+			
+			function handleHitResults(hits) {
+				let size = 0.05;
+				let hit = hits[0]
+				if (hit) {
+					// use the hitMatrix so it creates an independent anchor
+					session.requestFrameOfReference('head-model').then(headFrameOfReference => {
+						session.addAnchor(hit.hitMatrix, headFrameOfReference).then(anchor => {
+							engine.addAnchoredNode(anchor, createSceneGraphNode())
+						}).catch(err => {
+							console.error('Error adding anchor', err)
+						})
+					})
+				}
+			}
+
+			// Creates a box used to indicate the location of an anchor offset
+			function createSceneGraphNode(){
+				let group = new THREE.Group()
+				let geometry = new THREE.BoxBufferGeometry(0.1, 0.1, 0.1)
+				var color = new THREE.Color( 0xffffff );
+        		color.setHex( Math.random() * 0xffffff );
+				let material = new THREE.MeshPhongMaterial({ color: color })
+				let mesh = new THREE.Mesh(geometry, material)
+	
+				var outlineMaterial = new THREE.MeshBasicMaterial( { color: 0x00ff00, side: THREE.BackSide } );
+				var outlineMesh = new THREE.Mesh( geometry, outlineMaterial );
+
+				mesh.position.set(0, 0.05, 0)
+				outlineMesh.position.set(0, 0.05, 0);
+				outlineMesh.scale.multiplyScalar(1.05);
+
+				group.add(mesh)
+				group.add(outlineMesh)
+				return group
+			}
+
+			// Called once per frame, before render, to give the app a chance to update this.scene
+			function updateScene(frame){
+				let msg = session.nonStandard_getWorldMappingStatus()
+				if (msg) {
+					mapMessageEl.innerHTML = msg
+				}
+			}
+
+
+			/**
+			 * Basic flow needed:
+			 * - session.getMapForAnchor(anchor)
+			 *   returns a promise that resolves when finished.
+			 *   internally, we'll wait till the area is "mapped", then get the map and
+			 *   check if the anchor is in it.  Will only return the map without details
+			 *   has methods to cancel trying, and check status
+			 * - session.getAnchorFromMap(map)
+			 *   returns a promise that resolves when the map has loaded and the 
+			 *   anchor associated with the map is alive.  
+			 *      or returns a new kind of XRAnchor, XRMappedAnchor, that can be
+			 *      tested as to when it is resolved and thus valid, and also has
+			 *      methods to cancel the resolving process and get status
+			 *   need to be careful to not pass other anchors up to the app
+			*/
+			function getMap() {
+				session.nonStandard_getWorldMap().then(map => {
+					worldMap = map;
+					console.log("got worldMap, size = ", worldMap.worldMap.length)
+				}).catch(err => {
+					console.error('Could not get world Map', err)
+					worldMap = null;
+				});
+			}
+
+			// if you have a world map, you can use it with a similar command.  
+			// to see it in action, uncomment the following code:
+			//
+			function setMap () {
+				if (worldMap) {
+					session.nonStandard_setWorldMap(worldMap).then(val => {
+
+						// val returns a list of anchors, many of which are not yet valid
+						// we will set them to one thing now, and change it to something
+						// else when the first update happens
+
+
+
+
+
+
+						console.log("set worldMap ok")
+					}).catch(err => {
+						console.error('Could not set world Map', err)
+					})
+				}
+			}
+			
+			function _handleNewWorldAnchor(event) {
+				let anchor = event.detail
+
+				if (anchor.uid.startsWith('anchor-')) {
+					// it's an anchor we created last time
+					console.log("RECEIVED anchor with uid=", anchor.uid)
+
+					this.addAnchoredNode(new XRAnchorOffset(anchor.uid), this._createSceneGraphNode())
+				}
+			}
+
+
+			////////////////////////////////////////////////////
+			////////////////////////////////////////////////////
+			// BOILER PLATE.  Can you feel the plates boiling?
+			//
+			// Create the output context where the XRSession will place composited renders
+			const xrCanvas = document.createElement('canvas')
+			xrCanvas.setAttribute('class', 'xr-canvas')
+			const xrContext = xrCanvas.getContext('xrpresent')
+			if(!xrContext){
+				console.error('No XR context', xrCanvas)
+			}
+
+			// get the XR Device
+			navigator.xr.requestDevice().then(xrDevice => {
+				device = xrDevice
+			}).catch(err => {
+				console.error('Error', err)
+			})
+
+			document.getElementById('description').addEventListener('touchstart', hideMe, {capture: true})
+			function hideMe(event) { 
+				event.target.style.display = 'none' 
+				event.stopPropagation()
+			}
+
+			document.getElementById('go-button').addEventListener('click', handleStartSessionRequest, true)
+			document.getElementById('go-button').addEventListener('touchstart', eatButtonTouch, true)
+			function eatButtonTouch(event) { 
+				event.stopPropagation()
+			}
+
+			document.getElementById('get-button').addEventListener('click', getMap, true)
+			document.getElementById('get-button').addEventListener('touchstart', eatButtonTouch, true)
+			document.getElementById('set-button').addEventListener('click', setMap, true)
+			document.getElementById('set-button').addEventListener('touchstart', eatButtonTouch, true)
+
+			// handle input events from the XRInputManager
+			const inputManager = new XRInputManager(handleXRInput)
+			function handleXRInput(eventName, details){
+				switch(eventName){
+					case 'normalized-touch':
+						hitTestWithScreenCoordinates(...details.normalizedCoordinates)
+							.then(handleHitResults)
+							.catch(err => {
+								console.error('Error testing hits', err)
+							})
+						break
+					default:
+						console.error('unknown xr input event', eventName, details)
+						break
+				}
+			}
+
+			function hitTestWithScreenCoordinates(normalizedX, normalizedY){
+				if(session === null){
+					console.log('No session for hit testing')
+					return Promise.reject()
+				}
+				// Convert the screen coordinates into head-model origin/direction for hit testing
+				const [origin, direction] = 
+						XRInputManager.convertScreenCoordinatesToRay(normalizedX, normalizedY, 
+											 																	 engine.camera.projectionMatrix)
+
+				return session.requestFrameOfReference('head-model').then(headFrameOfReference => {
+					return session.requestHitTest(origin, direction, headFrameOfReference)
+				})
+			}
+
+			/////////////////////
+			// Session startup / shutdown
+			function handleStartSessionRequest(ev){
+				if(device === null){
+					console.error('No xr device')
+					return
+				}
+
+				if (!session) {
+					device.requestSession({ 
+                        outputContext: xrContext,
+                        worldSensing: true  
+                    }).then(handleSessionStarted)
+						.catch(err => {
+							console.error('Session setup error', err)
+						})
+					document.getElementById('go-button').innerText = "End"
+					document.getElementById('go-button').style.display = "none"
+					document.getElementById('set-button').style.display = 'block' 
+					document.getElementById('get-button').style.display = 'block' 
+				} else {
+					session.end()
+					handleSessionEnded();
+					document.getElementById('description').style.display = 'block' 
+					document.getElementById('set-button').style.display = 'none' 
+					document.getElementById('get-button').style.display = 'none' 
+					document.getElementById('go-button').style.display = "block"
+					document.getElementById('go-button').innerText = "Go"
+				}
+			}
+
+			function handleSessionEnded() {	
+				session = null
+			}
+
+			function handleSessionStarted(xrSession){
+				session = xrSession
+				document.body.insertBefore(xrCanvas, document.body.firstChild)
+
+				// Create the context where we will render our 3D scene
+				const canvas = document.createElement('canvas')
+				var glContext = canvas.getContext('webgl', {
+					compatibleXRDevice: device
+				})
+				if(!glContext) throw new Error('Could not create a webgl context')
+
+				// Set up the base layer
+				session.baseLayer = new XRWebGLLayer(session, glContext)
+
+				// Create a simple test scene and renderer
+				// The engine's scene is in the eye-level coordinate system 
+				engine = new XREngine(canvas, glContext)
+
+				createRootNode().then(() => {
+					// Kick off rendering
+					session.requestAnimationFrame(handleAnimationFrame)
+				})
+
+				initializeScene()
+			}
+
+			async function createRootNode() {
+				let headFrameOfReference = await session.requestFrameOfReference('head-model')
+				eyeLevelFrameOfReference = await session.requestFrameOfReference('eye-level')
+
+				// get the location of the device, and use it to create an 
+				// anchor with the identity orientation
+				headFrameOfReference.getTransformTo(eyeLevelFrameOfReference, workingMatrix)
+				mat4.getTranslation(workingVec3, workingMatrix)
+				mat4.fromTranslation(workingMatrix, workingVec3)
+
+				let anchor = await session.addAnchor(workingMatrix, eyeLevelFrameOfReference)
+				engine.addAnchoredNode(anchor, engine.root)
+				
+				return true
+			}
+
+			////////////////
+			// render loop			
+			function handleAnimationFrame(t, frame){
+				if(!session || session.ended) return
+				updateScene()
+				session.requestAnimationFrame(handleAnimationFrame)
+
+				let pose = frame.getDevicePose(eyeLevelFrameOfReference)
+				if(!pose){
+					console.log('No pose')
+					return
+				}
+
+				engine.startFrame()
+				for (let view of frame.views) {
+					engine.preRender(
+						session.baseLayer.getViewport(view),
+						view.projectionMatrix,
+						pose.getViewMatrix(view)
+					)
+					engine.render()
+				}
+				engine.endFrame()
+			}
+
+
+		</script>
+	</body>
+</html>

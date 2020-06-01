@@ -28,10 +28,9 @@ class App{
 		this.renderer.xr.enabled = true;
 		container.appendChild( this.renderer.domElement );
 		
-		document.body.appendChild( ARButton.createButton( this.renderer, { requiredFeatures: [ 'hit-test' ] } ) );
+		document.body.appendChild( ARButton.createButton( this.renderer, { requiredFeatures: [ 'hit-test', 'worldSensing' ] } ) );
         
         this.initScene();
-        this.engine = new XREngine();
         
         const self = this;
 
@@ -42,6 +41,8 @@ class App{
         this.controller = this.renderer.xr.getController( 0 );
         this.controller.addEventListener( 'select', onSelect );
         this.scene.add( this.controller );
+        
+        this.sessionN
         
         this.renderer.setAnimationLoop((timestamp, frame)=>{ self.render(timestamp, frame)});
 		
@@ -83,6 +84,10 @@ class App{
     }
     
     updateScene(frame){
+        if (this.sessionNeedsInitialising){
+                
+        }
+        
         const worldInfo = frame.worldInformation;
         
         const self = this;
@@ -98,16 +103,8 @@ class App{
         if(worldInfo.meshes){
             worldInfo.meshes.forEach(worldMesh => {
                 const object = meshMap.get(worldMesh.uid);
-                
-                if (object) {
-                    self.engine.handleUpdateNode(worldMesh, object);
-                } else {
-                    self.engine.handleNewNode(worldMesh);
-                }
             }); 
         }
-        
-        this.engine.removeUnseenObjects();
     }
     
 	render( timestamp, frame ) {
