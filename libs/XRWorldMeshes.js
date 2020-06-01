@@ -1,4 +1,4 @@
-class XREngine{
+class XRWorldMeshes{
     constructor(){
         this.meshMap = new Map();
     }
@@ -33,6 +33,48 @@ class XREngine{
 		return helper;
 	}
 
+    _handleAnchorDelete(details) {
+		let anchor = details.source
+		throttledConsoleLog('Anchor deleted: uid', anchor.uid)
+
+		const anchoredNode = this._anchoredNodes.get(anchor.uid)
+		if (anchoredNode) {
+			const node = anchoredNode.node
+			this.anchoredNodeRemoved(node);
+			this._anchoredNodes.delete(anchor.uid);
+			this._scene.remove(node)
+			return;
+		}
+	}
+
+	_handleAnchorUpdate(details) {
+		const anchor = details.source
+		const anchoredNode = this._anchoredNodes.get(anchor.uid)
+		if (anchoredNode) {
+			const node = anchoredNode.node
+			node.matrixAutoUpdate = false
+			node.matrix.fromArray(anchor.modelMatrix)
+			node.updateMatrixWorld(true)	
+			return;
+		}
+	}
+
+	/* 
+	Remove a node from the scene
+	*/
+	removeAnchoredNode(node) {
+		if (!node.anchor) {
+			console.error("trying to remove unanchored node with removeAnchoredNode")
+			return;
+		}
+		const anchoredNode = this._anchoredNodes.get(node.anchor.uid)
+		if (anchoredNode) {
+			this.anchoredNodeRemoved(anchoredNode.node);
+			this._anchoredNodes.delete(node.anchor.uid);
+			this._scene.remove(anchoredNode.node)
+			return;
+		}
+	}
 
 	/*
 	Add a node to the scene and keep its pose updated using the anchorOffset
@@ -192,6 +234,34 @@ class XREngine{
         mesh.geometry = geometry;  // for later use
 
         return mesh;
+    }
+    
+    update( meshes ){
+        const self = this;
+        
+        this.objectsSeen = false;
+        
+        meshes.forEach(worldMesh => {
+            var object = self.meshMap.get(worldMesh.uid);
+            if (object) {
+                self.handleUpdateNode(worldMesh, object);
+            } else {
+                self.handleNewNode(worldMesh);
+            }
+        })
+
+        this.meshMap.forEach(object => { 
+            if (!object.seen) {
+                self.handleRemoveNode(object)
+            } 
+        })
+    }
+    
+    clearAll(){
+        const self = this;
+        this.meshMap.forEach(object => { 
+            self.handleRemoveNode(object); 
+        });
     }
 }
 
