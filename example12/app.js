@@ -100,7 +100,7 @@ class App{
 
                 } );
 
-            } );
+            } ); 
             
             // initialize world sensing
             session.updateWorldSensingState({
