@@ -265,4 +265,4 @@ class XRWorldMeshes{
     }
 }
 
-export { XREngine };
+export { XRWorldMeshes };
