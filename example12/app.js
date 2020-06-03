@@ -1,6 +1,6 @@
 import * as THREE from '../libs/three/three.module.js';
 import { ARButton } from '../libs/three/jsm/ARButton.js';
-import { XREngine } from '../libs/XRWorldMeshes.js';
+import { XRWorldMeshes } from '../libs/XRWorldMeshes.js';
 
 class App{
 	constructor(){
@@ -28,7 +28,7 @@ class App{
 		this.renderer.xr.enabled = true;
 		container.appendChild( this.renderer.domElement );
 		
-		document.body.appendChild( ARButton.createButton( this.renderer, { requiredFeatures: [ 'hit-test' ] } ) );
+		document.body.appendChild( ARButton.createButton( this.renderer, { requiredFeatures: [ 'hit-test', 'worldSensing' ] } ) );
         
         this.initScene();
         
@@ -121,6 +121,10 @@ class App{
 
             } );
 
+            session.requestReferenceSpace('local').then( (refSpace) => {
+                self.localReferenceSpace = refSpace;
+            });
+            
             this.sessionNeedsInitialising = false;
             
             this.xrWorldMeshes = new XRWorldMeshes();
