@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>College - v1</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+	<style>
+		body{
+			margin: 0;
+			padding: 0;
+		}
+	</style>
+</head>
+<body>
+	<script type="module">
+        import { App } from './app.js';
+        
+		document.addEventListener("DOMContentLoaded", function(){
+			const app = new App();
+			window.app = app;
+		});
+	</script>
+</body>
+</html>
