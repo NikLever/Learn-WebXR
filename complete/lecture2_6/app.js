@@ -29,8 +29,8 @@ class App{
 		
         this.loadingBar = new LoadingBar();
         
-        //this.loadGLTF();
-        this.loadFBX();
+        this.loadGLTF();
+        //this.loadFBX();
         
         this.controls = new OrbitControls( this.camera, this.renderer.domElement );
         this.controls.target.set(0, 3.5, 0);
@@ -49,6 +49,9 @@ class App{
 			'office-chair.glb',
 			// called when the resource is loaded
 			function ( gltf ) {
+                const bbox = new THREE.Box3().setFromObject( gltf.scene );
+                console.log(`min:${bbox.min.x.toFixed(2)},${bbox.min.y.toFixed(2)},${bbox.min.z.toFixed(2)} -  max:${bbox.max.x.toFixed(2)},${bbox.max.y.toFixed(2)},${bbox.max.z.toFixed(2)}`);
+                
                 self.chair = gltf.scene;
                 
 				self.scene.add( gltf.scene );
@@ -77,7 +80,7 @@ class App{
         const self = this;
     
         loader.load( 'office-chair.fbx', 
-            function ( object ) {
+            function ( object ) {    
                 self.chair = object;
 
                 self.scene.add( object );
