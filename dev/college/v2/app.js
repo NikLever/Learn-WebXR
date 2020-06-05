@@ -1,7 +1,6 @@
 
 import * as THREE from '../../../libs/three/three.module.js';
 import { GLTFLoader } from '../../../libs/three/jsm/GLTFLoader.js';
-import { OrbitControls } from '../../../libs/three/jsm/OrbitControls.js';
 import { LoadingBar } from '../../../libs/LoadingBar.js';
 import { JoyStick } from '../../../libs/JoyStick.js';
 import { Stats } from '../../../libs/stats.module.js';
@@ -13,11 +12,15 @@ class App{
 
 		this.assetsPath = '../../../assets/';
         
-		this.camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 1, 500 );
-		this.camera.position.set( 0, 2, 10 );
-
+		this.camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 0.5, 500 );
+		this.camera.position.set( 0, 1.5, 10 );
+        
+        this.dolly = new THREE.Object3D(  );
+        this.dolly.position.set(0, 0, 10);
+        
 		this.scene = new THREE.Scene();
-
+        this.scene.add( this.dolly );
+        
 		const ambient = new THREE.HemisphereLight(0xFFFFFF, 0xAAAAAA, 1.2);
 		this.scene.add(ambient);
 			
@@ -25,9 +28,6 @@ class App{
 		this.renderer.setPixelRatio( window.devicePixelRatio );
 		this.renderer.setSize( window.innerWidth, window.innerHeight );
 		container.appendChild( this.renderer.domElement );
-		
-		this.controls = new OrbitControls( this.camera, this.renderer.domElement );
-        this.controls.target.set(0, 1.3, 8);
 
 		this.stats = new Stats();
 		container.appendChild( this.stats.dom );
@@ -36,6 +36,7 @@ class App{
         
         this.clock = new THREE.Clock();
         this.up = new THREE.Vector3(0,1,0);
+        this.origin = new THREE.Vector3();
         
         this.raycaster = new THREE.Raycaster();
 			
@@ -129,94 +130,85 @@ class App{
 		);
 	}
     
-    moveCamera(dt){
-		const pos = this.player.object.position.clone();
-		pos.y += 60;
+    moveDolly(dt){
+        if (this.proxy === undefined) return;
+        
+        const wallLimit = 1.3;
+        const speed = 6;
+		let pos = this.dolly.position.clone();
+        pos.y += 1;
+        
 		let dir = new THREE.Vector3();
-		this.player.object.getWorldDirection(dir);
-		if (this.player.move.forward<0) dir.negate();
-		let raycaster = new THREE.Raycaster(pos, dir);
-		let blocked = false;
-		const box = this.environmentProxy;
-	
-		if (this.environmentProxy!=undefined){ 
-			const intersect = raycaster.intersectObject(box);
-			if (intersect.length>0){
-				if (intersect[0].distance<50) blocked = true;
-			}
-		}
+		this.dolly.getWorldDirection(dir);
+		if (this.move.forward<0) dir.negate();
+		this.raycaster.set(pos, dir);
+		
+        let blocked = false;
+		
+		let intersect = this.raycaster.intersectObject(this.proxy);
+        if (intersect.length>0){
+            if (intersect[0].distance < wallLimit) blocked = true;
+        }
 		
 		if (!blocked){
-			if (this.player.move.forward>0){
-				const speed = (this.player.action=='run') ? 200 : 100;
-				this.player.object.translateZ(dt*speed);
-			}else{
-				this.player.object.translateZ(-dt*30);
-			}
+            const delta = (this.move.forward>0) ? dt*this.move.forward*speed : dt*this.move.forward*speed*0.3;
+            //console.log(`Moving ${delta.toFixed(2)}:${this.dolly.position.x.toFixed(2)}, ${this.dolly.position.z.toFixed(2)}`);
+            this.dolly.translateZ(delta);
+            pos = this.dolly.getWorldPosition( this.origin );
 		}
 		
-		if (this.environmentProxy!=undefined){
-			//cast left
-			dir.set(-1,0,0);
-			dir.applyMatrix4(this.player.object.matrix);
-			dir.normalize();
-			raycaster = new THREE.Raycaster(pos, dir);
+        //cast left
+        dir.set(-1,0,0);
+        dir.applyMatrix4(this.dolly.matrix);
+        dir.normalize();
+        this.raycaster.set(pos, dir);
 
-			let intersect = raycaster.intersectObject(box);
-			if (intersect.length>0){
-				if (intersect[0].distance<50) this.player.object.translateX(50-intersect[0].distance);
-			}
-			
-			//cast right
-			dir.set(1,0,0);
-			dir.applyMatrix4(this.player.object.matrix);
-			dir.normalize();
-			raycaster = new THREE.Raycaster(pos, dir);
+        intersect = this.raycaster.intersectObject(this.proxy);
+        if (intersect.length>0){
+            if (intersect[0].distance<wallLimit) this.dolly.translateX(wallLimit-intersect[0].distance);
+        }
 
-			intersect = raycaster.intersectObject(box);
-			if (intersect.length>0){
-				if (intersect[0].distance<50) this.player.object.translateX(intersect[0].distance-50);
-			}
-			
-			//cast down
-			dir.set(0,-1,0);
-			pos.y += 200;
-			raycaster = new THREE.Raycaster(pos, dir);
-			const gravity = 30;
+        //cast right
+        dir.set(1,0,0);
+        dir.applyMatrix4(this.dolly.matrix);
+        dir.normalize();
+        this.raycaster.set(pos, dir);
 
-			intersect = raycaster.intersectObject(box);
-			if (intersect.length>0){
-				const targetY = pos.y - intersect[0].distance;
-				if (targetY > this.player.object.position.y){
-					//Going up
-					this.player.object.position.y = 0.8 * this.player.object.position.y + 0.2 * targetY;
-					this.player.velocityY = 0;
-				}else if (targetY < this.player.object.position.y){
-					//Falling
-					if (this.player.velocityY==undefined) this.player.velocityY = 0;
-					this.player.velocityY += dt * gravity;
-					this.player.object.position.y -= this.player.velocityY;
-					if (this.player.object.position.y < targetY){
-						this.player.velocityY = 0;
-						this.player.object.position.y = targetY;
-					}
-				}
-			}
-		}
+        intersect = this.raycaster.intersectObject(this.proxy);
+        if (intersect.length>0){
+            if (intersect[0].distance<wallLimit) this.dolly.translateX(intersect[0].distance-wallLimit);
+        }
+
+        //cast down
+        dir.set(0,-1,0);
+        pos.y += 1.5;
+        this.raycaster.set(pos, dir);
+        
+        intersect = this.raycaster.intersectObject(this.proxy);
+        if (intersect.length>0){
+            this.dolly.position.copy( intersect[0].point );
+        }
 	}
     
     onMove( forward, turn ){
-        this.move.forward = forward;
+        this.move.forward = -forward;
         this.move.turn = (Math.abs(turn)<0.2) ? 0 : -turn;
     }
 		
 	render(){
         const dt = this.clock.getDelta();
-        if (this.move.turn!==0) this.camera.rotateOnWorldAxis( this.up, this.move.turn * dt );
-        if (this.move.forward !== 0){
-            //Use the raycaster to get a safe place to move to. 
-            this.moveCamera(dt);
+        if (this.move.turn!==0){
+            this.dolly.rotateOnWorldAxis( this.up, this.move.turn * dt );
         }
+        if (this.move.forward !== 0){
+            //Use the raycasting to get a safe place to move to. 
+            this.moveDolly(dt);
+        }
+        const pos = this.dolly.getWorldPosition(this.origin);
+        pos.y += 1.5;
+        
+        this.camera.position.lerp(pos, 0.1);
+        this.camera.quaternion.slerp(this.dolly.quaternion, 0.1);
         this.stats.update();
 		this.renderer.render(this.scene, this.camera);
 	}
