@@ -13,7 +13,7 @@ class App{
 
 		this.assetsPath = '../../../assets/';
         
-		this.camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 0.5, 500 );
+		this.camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 0.01, 500 );
 		this.camera.position.set( 0, 1.6, 0 );
         
         this.dolly = new THREE.Object3D(  );
@@ -28,7 +28,7 @@ class App{
 		const ambient = new THREE.HemisphereLight(0xFFFFFF, 0xAAAAAA, 1.2);
 		this.scene.add(ambient);
 			
-		this.renderer = new THREE.WebGLRenderer();
+		this.renderer = new THREE.WebGLRenderer({ antialias: true });
 		this.renderer.setPixelRatio( window.devicePixelRatio );
 		this.renderer.setSize( window.innerWidth, window.innerHeight );
 		container.appendChild( this.renderer.domElement );
@@ -155,7 +155,7 @@ class App{
         if (this.proxy === undefined) return;
         
         const wallLimit = 1.3;
-        const speed = 1;
+        const speed = 2;
 		let pos = this.dolly.position.clone();
         pos.y += 1;
         
