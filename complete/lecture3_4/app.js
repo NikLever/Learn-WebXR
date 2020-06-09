@@ -1,10 +1,10 @@
 import * as THREE from '../../libs/three/three.module.js';
-import { VRButton } from './VRButton.js';
-import { XRCustomController } from '../../libs/XRCustomController.js';
+import { VRButton } from '../../libs/VRButton.js';
 import { BoxLineGeometry } from '../../libs/three/jsm/BoxLineGeometry.js';
 import { GLTFLoader } from '../../libs/three/jsm/GLTFLoader.js';
 import { Stats } from '../../libs/stats.module.js';
 import { OrbitControls } from '../../libs/three/jsm/OrbitControls.js';
+import { SpotLightVolumetricMaterial } from '../../libs/SpotLightVolumetricMaterial.js';
 
 
 class App{
@@ -98,7 +98,6 @@ class App{
 
         function onSelectEnd() {
 
-            this.children[0].scale.z = 0;
             self.highlight.visible = false;
             this.userData.selectPressed = false;
             if (self.spotlight) self.spotlight.visible = false;
@@ -110,70 +109,68 @@ class App{
         this.controller.addEventListener( 'selectend', onSelectEnd );
         this.controller.addEventListener( 'connected', function ( event ) {
 
-            const mesh = self.buildController.call(self, event.data );
-            mesh.scale.z = 0;
-            this.add( mesh );
+            self.buildController.call(self, event.data, this );
 
         } );
         this.controller.addEventListener( 'disconnected', function () {
 
-            this.remove( this.children[ 0 ] );
+            while(this.children.length>0) this.remove( this.children[ 0 ] );
             self.controller = null;
-            self.controllerGrip = null;
 
         } );
         this.scene.add( this.controller );
-
-        this.controllerGrip = this.renderer.xr.getControllerGrip( 0 );
-        
-        const loader = new GLTFLoader().setPath('../../assets/');
-        
-        loader.load( 'flash-light.glb',
-            ( gltf ) => {
-                self.controllerGrip.add( gltf.scene );
-                self.spotlight = new THREE.Group();
-                const spotlight = new THREE.SpotLight( 0xFFFFFF, 1, 6, Math.PI/4, 0.3 );
-                const geometry = new THREE.CylinderBufferGeometry(0, 0.5, 5, 12, 1, true);
-                geometry.rotateX( -Math.PI/2 );
-                const material = new THREE.MeshBasicMaterial( { color: 0xFFFFFF, transparent: true, opacity: 0.2, side: THREE.BackSide });
-                const cone = new THREE.Mesh( geometry, material );
-                self.spotlight.add( spotlight );
-                self.spotlight.add( cone );
-                self.controllerGrip.add(self.spotlight);
-                self.spotlight.visible = false;
-            },
-            null,
-            (error) =>  {
-                console.error( 'An error occurred' );    
-            }
-        );
-        
-        this.scene.add( this.controllerGrip );
-        
+ 
         this.scene.add(this.highlight);
 
     }
     
-    buildController( data ) {
-        let geometry, material;
+    buildController( data, controller ) {
+        let geometry, material, loader;
+        
+        const self = this;
         
         switch ( data.targetRayMode ) {
             
             case 'tracked-pointer':
 
-                geometry = new THREE.BufferGeometry();
-                geometry.setAttribute( 'position', new THREE.Float32BufferAttribute( [ 0, 0, 0, 0, 0, - 1 ], 3 ) );
-                geometry.setAttribute( 'color', new THREE.Float32BufferAttribute( [ 0.5, 0.5, 0.5, 0, 0, 0 ], 3 ) );
-
-                material = new THREE.LineBasicMaterial( { vertexColors: true, blending: THREE.AdditiveBlending } );
-
-                return new THREE.Line( geometry, material );
-
+                loader = new GLTFLoader().setPath('../../assets/');
+        
+                loader.load( 'flash-light.glb',
+                    ( gltf ) => {
+                        controller.add( gltf.scene );
+                        self.spotlight = new THREE.Group();
+                        const spotlight = new THREE.SpotLight( 0xFFFFFF, 2, 12, Math.PI/15, 0.3 );
+                        geometry = new THREE.CylinderBufferGeometry(0.03, 1, 5, 32, 5, true);
+                        geometry.rotateX( Math.PI/2 );
+                        material = new SpotLightVolumetricMaterial();
+                        const cone = new THREE.Mesh( geometry, material );
+                        cone.translateZ( -2.6 );
+                        //const spotlightHelper = new THREE.SpotLightHelper( spotlight );
+                        //self.scene.add( spotlightHelper );
+                        self.spotlight.add( spotlight.target );
+                        self.spotlight.add( spotlight );
+                        self.spotlight.add( cone );
+                        const pos = new THREE.Vector3(0,0,0);
+                        spotlight.position.copy(pos);
+                        pos.z -= 1;
+                        spotlight.target.position.copy(pos);
+                        spotlight.quaternion.x = 0.7;
+                        controller.add(self.spotlight);
+                        self.spotlight.visible = false;
+                    },
+                    null,
+                    (error) =>  {
+                        console.error( 'An error occurred' );    
+                    }
+                );
+                
+                break;
+                
             case 'gaze':
 
                 geometry = new THREE.RingBufferGeometry( 0.02, 0.04, 32 ).translate( 0, 0, - 1 );
                 material = new THREE.MeshBasicMaterial( { opacity: 0.5, transparent: true } );
-                return new THREE.Mesh( geometry, material );
+                controller.add( new THREE.Mesh( geometry, material ) )
 
         }
 
@@ -181,8 +178,6 @@ class App{
     
     handleController( controller ){
         if (controller.userData.selectPressed ){
-            controller.children[0].scale.z = 10;
-
             this.workingMatrix.identity().extractRotation( controller.matrixWorld );
 
             this.raycaster.ray.origin.setFromMatrixPosition( controller.matrixWorld );
@@ -193,7 +188,6 @@ class App{
             if (intersects.length>0){
                 intersects[0].object.add(this.highlight);
                 this.highlight.visible = true;
-                controller.children[0].scale.z = intersects[0].distance;
             }else{
                 this.highlight.visible = false;
             }
