@@ -76,9 +76,6 @@ class App{
             this.room.add( object );
 
         }
-        
-        this.highlight = new THREE.Mesh( geometry, new THREE.MeshBasicMaterial( { color: 0xffffff, side: THREE.BackSide } ) );
-        this.highlight.scale.set(1.2, 1.2, 1.2);
     }
     
     setupVR(){

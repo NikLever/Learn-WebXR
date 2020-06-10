@@ -1,5 +1,5 @@
 import * as THREE from '../../libs/three/three.module.js';
-import { VRButton } from './VRButton.js';
+import { VRButton } from '../../libs/VRButton.js';
 import { XRControllerModelFactory } from '../../libs/three/jsm/XRControllerModelFactory.js';
 import { BoxLineGeometry } from '../../libs/three/jsm/BoxLineGeometry.js';
 import { Stats } from '../../libs/stats.module.js';
@@ -91,6 +91,7 @@ class App{
         
         function onSelectStart() {
             
+            this.children[0].scale.z = 10;
             this.userData.selectPressed = true;
         }
 
@@ -137,29 +138,14 @@ class App{
     }
     
     buildController( data ) {
-        let geometry, material;
-        
-        switch ( data.targetRayMode ) {
-            
-            case 'tracked-pointer':
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute( 'position', new THREE.Float32BufferAttribute( [ 0, 0, 0, 0, 0, - 1 ], 3 ) );
+                
+        const material = new THREE.LineBasicMaterial( );
 
-                geometry = new THREE.BufferGeometry();
-                geometry.setAttribute( 'position', new THREE.Float32BufferAttribute( [ 0, 0, 0, 0, 0, - 1 ], 3 ) );
-                geometry.setAttribute( 'color', new THREE.Float32BufferAttribute( [ 0.5, 0.5, 0.5, 0, 0, 0 ], 3 ) );
-
-                material = new THREE.LineBasicMaterial( { vertexColors: true, blending: THREE.AdditiveBlending } );
-
-                return new THREE.Line( geometry, material );
-
-            case 'gaze':
-
-                geometry = new THREE.RingBufferGeometry( 0.02, 0.04, 32 ).translate( 0, 0, - 1 );
-                material = new THREE.MeshBasicMaterial( { opacity: 0.5, transparent: true } );
-                return new THREE.Mesh( geometry, material );
-
-        }
-
+        return new THREE.Line( geometry, material );
     }
+    
     
     handleController( controller ){
         if (controller.userData.selectPressed ){

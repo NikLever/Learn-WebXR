@@ -86,6 +86,19 @@ class App{
         
         const self = this;
         
+        function onSelectStart() {
+            
+            this.userData.selectPressed = true;
+        }
+
+        function onSelectEnd() {
+
+            this.children[0].scale.z = 0;
+            self.highlight.visible = false;
+            this.userData.selectPressed = false;
+            
+        }
+        
         this.controller = this.renderer.xr.getController( 0 );
         this.controller.addEventListener( 'connected', function ( event ) {
 
@@ -94,17 +107,11 @@ class App{
         } );
         this.controller.addEventListener( 'disconnected', function () {
 
-            this.remove( this.children[ 0 ] );
             self.controller = null;
             self.controllerGrip = null;
 
         } );
         this.scene.add( this.controller );
-
-        // The XRControllerModelFactory will automatically fetch controller models
-        // that match what the user is holding as closely as possible. The models
-        // should be attached to the object returned from getControllerGrip in
-        // order to match the orientation of the held device.
 
         const controllerModelFactory = new XRControllerModelFactory();
 
