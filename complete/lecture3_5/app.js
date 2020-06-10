@@ -10,6 +10,8 @@ import {
 	MotionController
 } from '../../libs/three/jsm/motion-controllers.module.js';
 
+const DEFAULT_PROFILES_PATH = 'https://cdn.jsdelivr.net/npm/@webxr-input-profiles/assets@1.0/dist/profiles';
+const DEFAULT_PROFILE = 'generic-trigger';
 
 class App{
 	constructor(){
@@ -96,40 +98,114 @@ class App{
         
         this.controller = this.renderer.xr.getController( 0 );
         this.controller.addEventListener( 'connected', function ( event ) {
+            const info = {};
+            
+            fetchProfile( event.data, DEFAULT_PROFILES_PATH, DEFAULT_PROFILE ).then( ( { profile, assetPath } ) => {
+                info.name = profile.profileId;
+                info.targetRayMode = event.data.targetRayMode;
 
-            self.buildController.call(self, event.data, this );
+                for( let key1 in profile.layouts){
+                    const components = { };
+                    const layout = profile.layouts[key1];
+                    for(let key2 in layout.components){
+                        const component = layout.components[key2];
+                        components[component.type] = true;
+                    }
+                    info[key1] = components;
+                };
 
-        } );
-        this.controller.addEventListener( 'disconnected', function () {
+                console.log( JSON.stringify(info) );
 
-            self.controller = null;
-            self.controllerGrip = null;
+                self.updateControllers( info );
 
-        } );
-        this.scene.add( this.controller );
+            } );
+            
+        });
         
         this.scene.add(this.highlight);
 
     }
     
-    buildController( data ) {
+    updateControllers(info){
+        const controllerModelFactory = new XRControllerModelFactory();
+        const self = this;
         
-        fetchProfile( data, DEFAULT_PROFILES_PATH, DEFAULT_PROFILE ).then( ( { profile, assetPath } ) => {
-            
-            console.log(JSON.stringify( profile ));
-            
-        } ).catch( ( err ) => {
+        function onSelectStart( ){
+            this.userData.selectPressed = true;
+        }
 
-            console.warn( err );
+        function onSelectEnd( ){
+            this.children[0].scale.z = 0;
+            this.userData.selectPressed = false;
+        }
 
-        } );
-        
+        function onSqueezeStart( ){
+            this.userData.squeezePressed = true;
+            if (this.userData.selected !== undefined ){
+                this.attach( this.userData.selected );
+            }
+        }
+
+        function onSqueezeEnd( ){
+            this.userData.squeezePressed = false;
+            if (this.userData.selected !== undefined){
+                this.room.attach( this.userData.selected );
+                this.userData.selected = undefined;
+            }
+        }
+
+        if (info.right !== undefined){
+            this.controller = self.renderer.xr.getController(0);
+            this.controller.addEventListener( 'disconnected', function () {
+
+                self.controller = null;
+                self.controllerGrip = null;
+
+            } );
+            self.buildController( self.controller );
+            self.scene.add( self.controller );
+
+            self.controllerGrip = self.renderer.xr.getControllerGrip( 0 );
+            self.controllerGrip.add( controllerModelFactory.createControllerModel( self.controllerGrip ) );
+            self.scene.add( self.controllerGrip );
+
+            if (info.left.trigger){
+                self.controller.addEventListener( 'selectstart', onSelectStart );
+                self.controller.addEventListener( 'selectend', onSelectEnd );
+            }
+
+            if (info.left.squeeze){
+                self.controller.addEventListener( 'squeezestart', onSqueezeStart );
+                self.controller.addEventListener( 'squeezeend', onSqueezeEnd );
+            }
+        }
+
+        if (info.left){
+            self.controller1 = self.renderer.xr.getController( 1 );
+            self.controller1.addEventListener( 'disconnected', function () {
+
+                self.controller1 = null;
+                self.controllerGrip1 = null;
+
+            } );
+            self.scene.add( self.controller1 );
+
+            self.controllerGrip1 = self.renderer.xr.getControllerGrip( 1 );
+            self.controllerGrip1.add( controllerModelFactory.createControllerModel( self.controllerGrip1 ) );
+            self.scene.add( self.controllerGrip1 );
+        }
+    }
+    
+    buildController( controller ) {
         const geometry = new THREE.BufferGeometry();
         geometry.setAttribute( 'position', new THREE.Float32BufferAttribute( [ 0, 0, 0, 0, 0, - 1 ], 3 ) );
                 
         const material = new THREE.LineBasicMaterial( );
 
-        return new THREE.Line( geometry, material );
+        const mesh = new THREE.Line( geometry, material );
+        mesh.scale.z = 0;
+        
+        controller.add(mesh);
     }
     
     
@@ -148,6 +224,7 @@ class App{
                 intersects[0].object.add(this.highlight);
                 this.highlight.visible = true;
                 controller.children[0].scale.z = intersects[0].distance;
+                controller.userData.selected = intersects[0].object;
             }else{
                 this.highlight.visible = false;
             }
