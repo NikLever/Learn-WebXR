@@ -1,7 +1,6 @@
 import * as THREE from '../../libs/three/three.module.js';
-import { VRButton } from './VRButton.js';
+import { VRButton } from '../../libs/VRButton.js';
 import { XRControllerModelFactory } from '../../libs/three/jsm/XRControllerModelFactory.js';
-import { BoxLineGeometry } from '../../libs/three/jsm/BoxLineGeometry.js';
 import { Stats } from '../../libs/stats.module.js';
 import { OrbitControls } from '../../libs/three/jsm/OrbitControls.js';
 
@@ -13,13 +12,13 @@ class App{
         
         this.clock = new THREE.Clock();
         
-		this.camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.1, 100 );
-		this.camera.position.set( 0, 1.6, 3 );
+		this.camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.1, 200 );
+		this.camera.position.set( 0, 1.6, 5 );
         
 		this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color( 0x505050 );
 
-		this.scene.add( new THREE.HemisphereLight( 0x606060, 0x404040 ) );
+		this.scene.add( new THREE.HemisphereLight( 0xffffff, 0x404040 ) );
 
         const light = new THREE.DirectionalLight( 0xffffff );
         light.position.set( 1, 1, 1 ).normalize();
@@ -41,6 +40,7 @@ class App{
         this.raycaster = new THREE.Raycaster();
         this.workingMatrix = new THREE.Matrix4();
         this.workingVector = new THREE.Vector3();
+        this.origin = new THREE.Vector3();
         
         this.initScene();
         this.setupVR();
@@ -55,32 +55,41 @@ class App{
     }
     
     initScene(){
-        this.radius = 0.08;
+
+		this.scene.background = new THREE.Color( 0xa0a0a0 );
+		this.scene.fog = new THREE.Fog( 0xa0a0a0, 50, 100 );
+
+		// ground
+		const ground = new THREE.Mesh( new THREE.PlaneBufferGeometry( 200, 200 ), new THREE.MeshPhongMaterial( { color: 0x999999, depthWrite: false } ) );
+		ground.rotation.x = - Math.PI / 2;
+		this.scene.add( ground );
+
+		var grid = new THREE.GridHelper( 200, 40, 0x000000, 0x000000 );
+		grid.material.opacity = 0.2;
+		grid.material.transparent = true;
+		this.scene.add( grid );
         
-        this.room = new THREE.LineSegments(
-					new BoxLineGeometry( 6, 6, 6, 10, 10, 10 ),
-					new THREE.LineBasicMaterial( { color: 0x808080 } )
-				);
-        this.room.geometry.translate( 0, 3, 0 );
-        this.scene.add( this.room );
+        const geometry = new THREE.BoxGeometry(5, 5, 5);
+        const material = new THREE.MeshPhongMaterial({ color:0xAAAA22 });
+        const edges = new THREE.EdgesGeometry( geometry );
+        const line = new THREE.LineSegments( edges, new THREE.LineBasicMaterial( { color: 0x000000, linewidth: 2 } ) );
+
+        this.colliders = [];
         
-        const geometry = new THREE.IcosahedronBufferGeometry( this.radius, 2 );
-
-        for ( let i = 0; i < 200; i ++ ) {
-
-            const object = new THREE.Mesh( geometry, new THREE.MeshLambertMaterial( { color: Math.random() * 0xffffff } ) );
-
-            object.position.x = this.random( -2, 2 );
-            object.position.y = this.random( -2, 2 );
-            object.position.z = this.random( -2, 2 );
-
-            this.room.add( object );
-
+        for (let x=-100; x<100; x+=10){
+            for (let z=-100; z<100; z+=10){
+                if (x==0 && z==0) continue;
+                const box = new THREE.Mesh(geometry, material);
+                box.position.set(x, 2.5, z);
+                const edge = line.clone();
+                edge.position.copy( box.position );
+                this.scene.add(box);
+                this.scene.add(edge);
+                this.colliders.push(box);
+            }
         }
         
-        this.highlight = new THREE.Mesh( geometry, new THREE.MeshBasicMaterial( { color: 0xffffff, side: THREE.BackSide } ) );
-        this.highlight.scale.set(1.2, 1.2, 1.2);
-    }
+    } 
     
     setupVR(){
         this.renderer.xr.enabled = true;
@@ -96,8 +105,6 @@ class App{
 
         function onSelectEnd() {
 
-            this.children[0].scale.z = 0;
-            self.highlight.visible = false;
             this.userData.selectPressed = false;
             
         }
@@ -121,18 +128,19 @@ class App{
         } );
         this.scene.add( this.controller );
 
-        // The XRControllerModelFactory will automatically fetch controller models
-        // that match what the user is holding as closely as possible. The models
-        // should be attached to the object returned from getControllerGrip in
-        // order to match the orientation of the held device.
-
         const controllerModelFactory = new XRControllerModelFactory();
 
         this.controllerGrip = this.renderer.xr.getControllerGrip( 0 );
         this.controllerGrip.add( controllerModelFactory.createControllerModel( this.controllerGrip ) );
         this.scene.add( this.controllerGrip );
         
-        this.scene.add(this.highlight);
+        this.dolly = new THREE.Object3D();
+        this.dolly.position.z = 5;
+        this.dolly.add( this.camera );
+        this.scene.add( this.dolly );
+        
+        this.dummyCam = new THREE.Object3D();
+        this.camera.add( this.dummyCam );
 
     }
     
@@ -161,24 +169,62 @@ class App{
 
     }
     
-    handleController( controller ){
+    handleController( controller, dt ){
         if (controller.userData.selectPressed ){
-            controller.children[0].scale.z = 10;
+            
+            const wallLimit = 1.3;
+            const speed = 2;
+            let pos = this.dolly.position.clone();
+            pos.y += 1;
 
-            this.workingMatrix.identity().extractRotation( controller.matrixWorld );
+            let dir = new THREE.Vector3();
+            //Store original dolly rotation
+            const quaternion = this.dolly.quaternion.clone();
+            //Get rotation for movement from the headset pose
+            this.dolly.quaternion.copy( this.dummyCam.getWorldQuaternion() );
+            this.dolly.getWorldDirection(dir);
+            dir.negate();
+            this.raycaster.set(pos, dir);
 
-            this.raycaster.ray.origin.setFromMatrixPosition( controller.matrixWorld );
-            this.raycaster.ray.direction.set( 0, 0, - 1 ).applyMatrix4( this.workingMatrix );
+            let blocked = false;
 
-            const intersects = this.raycaster.intersectObjects( this.room.children );
-
-            if (intersects.length>0){
-                intersects[0].object.add(this.highlight);
-                this.highlight.visible = true;
-                controller.children[0].scale.z = intersects[0].distance;
-            }else{
-                this.highlight.visible = false;
+            let intersect = this.raycaster.intersectObjects(this.colliders);
+            if (intersect.length>0){
+                if (intersect[0].distance < wallLimit) blocked = true;
             }
+
+            if (!blocked){
+                this.dolly.translateZ(-dt*speed);
+                pos = this.dolly.getWorldPosition( this.origin );
+            }
+
+            //cast left
+            dir.set(-1,0,0);
+            dir.applyMatrix4(this.dolly.matrix);
+            dir.normalize();
+            this.raycaster.set(pos, dir);
+
+            intersect = this.raycaster.intersectObjects(this.colliders);
+            if (intersect.length>0){
+                if (intersect[0].distance<wallLimit) this.dolly.translateX(wallLimit-intersect[0].distance);
+            }
+
+            //cast right
+            dir.set(1,0,0);
+            dir.applyMatrix4(this.dolly.matrix);
+            dir.normalize();
+            this.raycaster.set(pos, dir);
+
+            intersect = this.raycaster.intersectObjects(this.colliders);
+            if (intersect.length>0){
+                if (intersect[0].distance<wallLimit) this.dolly.translateX(intersect[0].distance-wallLimit);
+            }
+
+            this.dolly.position.y = 0;
+
+            //Restore the original rotation
+            this.dolly.quaternion.copy( quaternion );
+   
         }
     }
     
@@ -188,9 +234,10 @@ class App{
         this.renderer.setSize( window.innerWidth, window.innerHeight );  
     }
     
-	render( ) {   
+	render( ) {  
+        const dt = this.clock.getDelta();
         this.stats.update();
-        if (this.controller ) this.handleController( this.controller );
+        if (this.controller ) this.handleController( this.controller, dt );
         this.renderer.render( this.scene, this.camera );
     }
 }

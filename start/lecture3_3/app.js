@@ -1,5 +1,5 @@
 import * as THREE from '../../libs/three/three.module.js';
-import { VRButton } from './VRButton.js';
+import { VRButton } from '../../libs/VRButton.js';
 import { XRControllerModelFactory } from '../../libs/three/jsm/XRControllerModelFactory.js';
 import { BoxLineGeometry } from '../../libs/three/jsm/BoxLineGeometry.js';
 import { Stats } from '../../libs/stats.module.js';
@@ -40,7 +40,6 @@ class App{
         
         this.raycaster = new THREE.Raycaster();
         this.workingMatrix = new THREE.Matrix4();
-        this.workingVector = new THREE.Vector3();
         
         this.initScene();
         this.setupVR();
@@ -88,98 +87,14 @@ class App{
         const button = new VRButton( this.renderer );
         
         const self = this;
-        
-        function onSelectStart() {
-            
-            this.userData.selectPressed = true;
-        }
-
-        function onSelectEnd() {
-
-            this.children[0].scale.z = 0;
-            self.highlight.visible = false;
-            this.userData.selectPressed = false;
-            
-        }
-        
-        this.controller = this.renderer.xr.getController( 0 );
-        this.controller.addEventListener( 'selectstart', onSelectStart );
-        this.controller.addEventListener( 'selectend', onSelectEnd );
-        this.controller.addEventListener( 'connected', function ( event ) {
-
-            const mesh = self.buildController.call(self, event.data );
-            mesh.scale.z = 0;
-            this.add( mesh );
-
-        } );
-        this.controller.addEventListener( 'disconnected', function () {
-
-            this.remove( this.children[ 0 ] );
-            self.controller = null;
-            self.controllerGrip = null;
-
-        } );
-        this.scene.add( this.controller );
-
-        // The XRControllerModelFactory will automatically fetch controller models
-        // that match what the user is holding as closely as possible. The models
-        // should be attached to the object returned from getControllerGrip in
-        // order to match the orientation of the held device.
-
-        const controllerModelFactory = new XRControllerModelFactory();
-
-        this.controllerGrip = this.renderer.xr.getControllerGrip( 0 );
-        this.controllerGrip.add( controllerModelFactory.createControllerModel( this.controllerGrip ) );
-        this.scene.add( this.controllerGrip );
-        
-        this.scene.add(this.highlight);
-
     }
     
     buildController( data ) {
-        let geometry, material;
         
-        switch ( data.targetRayMode ) {
-            
-            case 'tracked-pointer':
-
-                geometry = new THREE.BufferGeometry();
-                geometry.setAttribute( 'position', new THREE.Float32BufferAttribute( [ 0, 0, 0, 0, 0, - 1 ], 3 ) );
-                geometry.setAttribute( 'color', new THREE.Float32BufferAttribute( [ 0.5, 0.5, 0.5, 0, 0, 0 ], 3 ) );
-
-                material = new THREE.LineBasicMaterial( { vertexColors: true, blending: THREE.AdditiveBlending } );
-
-                return new THREE.Line( geometry, material );
-
-            case 'gaze':
-
-                geometry = new THREE.RingBufferGeometry( 0.02, 0.04, 32 ).translate( 0, 0, - 1 );
-                material = new THREE.MeshBasicMaterial( { opacity: 0.5, transparent: true } );
-                return new THREE.Mesh( geometry, material );
-
-        }
-
     }
     
     handleController( controller ){
-        if (controller.userData.selectPressed ){
-            controller.children[0].scale.z = 10;
-
-            this.workingMatrix.identity().extractRotation( controller.matrixWorld );
-
-            this.raycaster.ray.origin.setFromMatrixPosition( controller.matrixWorld );
-            this.raycaster.ray.direction.set( 0, 0, - 1 ).applyMatrix4( this.workingMatrix );
-
-            const intersects = this.raycaster.intersectObjects( this.room.children );
-
-            if (intersects.length>0){
-                intersects[0].object.add(this.highlight);
-                this.highlight.visible = true;
-                controller.children[0].scale.z = intersects[0].distance;
-            }else{
-                this.highlight.visible = false;
-            }
-        }
+        
     }
     
     resize(){
