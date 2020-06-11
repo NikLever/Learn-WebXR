@@ -4,7 +4,6 @@ import { XRControllerModelFactory } from '../../libs/three/jsm/XRControllerModel
 import { BoxLineGeometry } from '../../libs/three/jsm/BoxLineGeometry.js';
 import { Stats } from '../../libs/stats.module.js';
 import { OrbitControls } from '../../libs/three/jsm/OrbitControls.js';
-import { ThreeMeshUI } from '../../libs/three/jsm/three-mesh-ui.js';
 import {
 	Constants as MotionControllerConstants,
 	fetchProfile,
@@ -88,50 +87,67 @@ class App{
         
         this.highlight = new THREE.Mesh( geometry, new THREE.MeshBasicMaterial( { color: 0xffffff, side: THREE.BackSide } ) );
         this.highlight.scale.set(1.2, 1.2, 1.2);
+        
+        this.gui = this.createTextPanel();
+    }
+    
+    createTextPanel(){
+         const container = ThreeMeshUI.Block({
+            width: 1.2,
+            height: 0.5,
+            padding: 0.05,
+            justifyContent: 'center',
+            alignContent: 'left',
+            fontFamily: '../../assets/fonts/roboto/Roboto-msdf.json',
+            fontTexture: '../../assets/fonts/roboto/Roboto-msdf.png'
+        });
+
+	    container.position.set( 0, 1, -1.8 );
+	    container.rotation.x = -0.55;
+        
+        this.guiText = ThreeMeshUI.Text({
+                content: "This will display debugging information",
+                fontSize: 0.055
+            });
+
+        container.add( this.guiText );
+        
+        this.scene.add( container );
+        
+        return container;
     }
     
     //{"trigger":{"button":0},"touchpad":{"button":2,"xAxis":0,"yAxis":1}},"squeeze":{"button":1},"thumbstick":{"button":3,"xAxis":2,"yAxis":3},"button":{"button":6}}}
-    createGUI(components){
-        if (this.gui) this.gui.destroy();
-        const gui = new GUI();
-        
+    createButtonStates(components){
+
         this.buttonStates = {};
         this.gamepadIndices = components;
         
         if ( components.trigger !== undefined ){
             this.buttonStates.trigger = 0;
-            gui.add( this.buttonStates, 'trigger' ).listen();
         }
         
         if ( components.squeeze !== undefined ){
             this.buttonStates.squeeze = 0;
-            gui.add( this.buttonStates, 'squeeze' ).listen();
         }
         
         if ( components.button !== undefined ){
             this.buttonStates.button = 0;
-            gui.add( this.buttonStates, 'button' ).listen();
         }
         
         if ( components.touchpad !== undefined ){
             this.buttonStates.touchpad = { button: 0, xAxis: 0, yAxis: 0 };
-            const touchpad = gui.addFolder( 'touchpad' );
-            touchpad.open();
-            touchpad.add( this.buttonStates.touchpad, 'button' ).listen();
-            touchpad.add( this.buttonStates.touchpad, 'xAxis' ).listen();
-            touchpad.add( this.buttonStates.touchpad, 'yAxis' ).listen();
         }
         
         if ( components.thumbstick !== undefined ){
             this.buttonStates.thumbstick = { button: 0, xAxis: 0, yAxis: 0 };
-            const thumbstick = gui.addFolder( 'thumbstick' );
-            thumbstick.open();
-            thumbstick.add( this.buttonStates.thumbstick, 'button' ).listen();
-            thumbstick.add( this.buttonStates.thumbstick, 'xAxis' ).listen();
-            thumbstick.add( this.buttonStates.thumbstick, 'yAxis' ).listen();
         }
         
-        this.gui = gui;
+    }
+    
+    updateGUI(){
+        this.guiText.set( { content: JSON.stringify( this.buttonStates )});
+        ThreeMeshUI.update();    
     }
     
     updateGamepadState(){
@@ -148,11 +164,13 @@ class App{
                         const xAxisIndex = this.gamepadIndices[key].xAxis;
                         const yAxisIndex = this.gamepadIndices[key].yAxis;
                         this.buttonStates[key].button = gamepad.buttons[buttonIndex].value; 
-                        this.buttonStates[key].xAxis = gamepad.axes[xAxisIndex]; 
-                        this.buttonStates[key].yAxis = gamepad.axes[yAxisIndex]; 
+                        this.buttonStates[key].xAxis = gamepad.axes[xAxisIndex].toFixed(2); 
+                        this.buttonStates[key].yAxis = gamepad.axes[yAxisIndex].toFixed(2); 
                     }else{
                         this.buttonStates[key] = gamepad.buttons[buttonIndex].value;
                     }
+                    
+                    this.updateGUI();
                 });
             }catch(e){
                 console.warn("An error occurred setting the gui");
@@ -186,7 +204,7 @@ class App{
                     info[key] = components;
                 });
 
-                self.createGUI( info.right );
+                self.createButtonStates( info.right );
                 
                 console.log( JSON.stringify(info) );
 
