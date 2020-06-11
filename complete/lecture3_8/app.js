@@ -80,25 +80,24 @@ class App{
   
         this.helper = new CannonHelper( scene, world );
 		
-	const groundShape = new CANNON.Plane();
-  groundMaterial = new CANNON.Material();
-	const groundBody = new CANNON.Body({ mass: 0, material: groundMaterial });
-	groundBody.quaternion.setFromAxisAngle( new CANNON.Vec3(1,0,0), -Math.PI/2);
-	groundBody.addShape(groundShape);
-	world.add(groundBody);
-  helper.addVisual(groundBody, 0xffaa00);
-  
-  // Joint body
-  const shape = new CANNON.Sphere(0.1);
-  jointBody = new CANNON.Body({ mass: 0 });
-  jointBody.addShape(shape);
-  jointBody.collisionFilterGroup = 0;
-  jointBody.collisionFilterMask = 0;
-  world.add(jointBody);
-  
-  box = addBody();
-}    
-    }
+        const groundShape = new CANNON.Plane();
+        groundMaterial = new CANNON.Material();
+        const groundBody = new CANNON.Body({ mass: 0, material: groundMaterial });
+        groundBody.quaternion.setFromAxisAngle( new CANNON.Vec3(1,0,0), -Math.PI/2);
+        groundBody.addShape(groundShape);
+        world.add(groundBody);
+        helper.addVisual(groundBody, 0xffaa00);
+
+        // Joint body
+        const shape = new CANNON.Sphere(0.1);
+        jointBody = new CANNON.Body({ mass: 0 });
+        jointBody.addShape(shape);
+        jointBody.collisionFilterGroup = 0;
+        jointBody.collisionFilterMask = 0;
+        world.add(jointBody);
+
+        box = this.addBody();
+    }    
     
     setupVR(){
         
