@@ -4,7 +4,7 @@ import { XRControllerModelFactory } from '../../libs/three/jsm/XRControllerModel
 import { BoxLineGeometry } from '../../libs/three/jsm/BoxLineGeometry.js';
 import { Stats } from '../../libs/stats.module.js';
 import { OrbitControls } from '../../libs/three/jsm/OrbitControls.js';
-import { GUI } from '../../libs/dat.gui.module.js';
+import { ThreeMeshUI } from '../../libs/three/jsm/three-mesh-ui.js';
 import {
 	Constants as MotionControllerConstants,
 	fetchProfile,
@@ -116,6 +116,7 @@ class App{
         if ( components.touchpad !== undefined ){
             this.buttonStates.touchpad = { button: 0, xAxis: 0, yAxis: 0 };
             const touchpad = gui.addFolder( 'touchpad' );
+            touchpad.open();
             touchpad.add( this.buttonStates.touchpad, 'button' ).listen();
             touchpad.add( this.buttonStates.touchpad, 'xAxis' ).listen();
             touchpad.add( this.buttonStates.touchpad, 'yAxis' ).listen();
@@ -124,12 +125,39 @@ class App{
         if ( components.thumbstick !== undefined ){
             this.buttonStates.thumbstick = { button: 0, xAxis: 0, yAxis: 0 };
             const thumbstick = gui.addFolder( 'thumbstick' );
+            thumbstick.open();
             thumbstick.add( this.buttonStates.thumbstick, 'button' ).listen();
             thumbstick.add( this.buttonStates.thumbstick, 'xAxis' ).listen();
             thumbstick.add( this.buttonStates.thumbstick, 'yAxis' ).listen();
         }
         
         this.gui = gui;
+    }
+    
+    updateGamepadState(){
+        const session = this.renderer.xr.getSession();
+        
+        const inputSource = session.inputSources[0];
+        
+        if (inputSource && inputSource.gamepad && this.gamepadIndices && this.gui && this.buttonStates){
+            const gamepad = inputSource.gamepad;
+            try{
+                Object.entries( this.buttonStates ).forEach( ( [ key, value ] ) => {
+                    const buttonIndex = this.gamepadIndices[key].button;
+                    if ( key == 'touchpad' || key == 'thumbstick'){
+                        const xAxisIndex = this.gamepadIndices[key].xAxis;
+                        const yAxisIndex = this.gamepadIndices[key].yAxis;
+                        this.buttonStates[key].button = gamepad.buttons[buttonIndex].value; 
+                        this.buttonStates[key].xAxis = gamepad.axes[xAxisIndex]; 
+                        this.buttonStates[key].yAxis = gamepad.axes[yAxisIndex]; 
+                    }else{
+                        this.buttonStates[key] = gamepad.buttons[buttonIndex].value;
+                    }
+                });
+            }catch(e){
+                console.warn("An error occurred setting the gui");
+            }
+        }
     }
     
     setupVR(){
@@ -158,7 +186,7 @@ class App{
                     info[key] = components;
                 });
 
-                self.updateGUI( info.right );
+                self.createGUI( info.right );
                 
                 console.log( JSON.stringify(info) );
 
@@ -283,35 +311,10 @@ class App{
         this.renderer.setSize( window.innerWidth, window.innerHeight );  
     }
     
-    getGamepadState(){
-        return;
-        
-        const session = this.renderer.xr.getSession();
-        
-        //Clear existing states
-        Object.values(this.buttonStates).forEach((state) =>{ state = "" });
-        
-        const data = {};
-        const inputSource = session.inputSources[0];
-        if (inputSource && inputSource.gamepad){
-            const gamepad = inputSource.gamepad;
-            let button = gamepad.buttons[2];
-            if (button) this.buttonStates.select = button.value;
-            button = gamepad.buttons[1];
-            if (button) this.buttonStates.squeeze = button.value;
-            button = gamepad.buttons[0];
-            if (button) this.buttonStates.back = button.value;
-            button = gamepad.axes[0];
-            if (button) this.buttonStates.xAxis = button;
-            button = gamepad.axes[1];
-            if (button) this.buttonStates.yAxis = button;
-        }
-    }
-    
 	render( ) {   
         this.stats.update();
         if (this.controller ) this.handleController( this.controller );
-        if (this.renderer.xr.isPresenting) this.getGamepadState();
+        if (this.renderer.xr.isPresenting) this.updateGamepadState();
         this.renderer.render( this.scene, this.camera );
     }
 }
