@@ -4,6 +4,7 @@ import { XRControllerModelFactory } from '../../libs/three/jsm/XRControllerModel
 import { BoxLineGeometry } from '../../libs/three/jsm/BoxLineGeometry.js';
 import { Stats } from '../../libs/stats.module.js';
 import { OrbitControls } from '../../libs/three/jsm/OrbitControls.js';
+import { GUI } from '../../libs/dat.gui.module.js';
 import {
 	Constants as MotionControllerConstants,
 	fetchProfile,
@@ -89,10 +90,54 @@ class App{
         this.highlight.scale.set(1.2, 1.2, 1.2);
     }
     
+    //{"trigger":{"button":0},"touchpad":{"button":2,"xAxis":0,"yAxis":1}},"squeeze":{"button":1},"thumbstick":{"button":3,"xAxis":2,"yAxis":3},"button":{"button":6}}}
+    createGUI(components){
+        if (this.gui) this.gui.destroy();
+        const gui = new GUI();
+        
+        this.buttonStates = {};
+        this.gamepadIndices = components;
+        
+        if ( components.trigger !== undefined ){
+            this.buttonStates.trigger = 0;
+            gui.add( this.buttonStates, 'trigger' ).listen();
+        }
+        
+        if ( components.squeeze !== undefined ){
+            this.buttonStates.squeeze = 0;
+            gui.add( this.buttonStates, 'squeeze' ).listen();
+        }
+        
+        if ( components.button !== undefined ){
+            this.buttonStates.button = 0;
+            gui.add( this.buttonStates, 'button' ).listen();
+        }
+        
+        if ( components.touchpad !== undefined ){
+            this.buttonStates.touchpad = { button: 0, xAxis: 0, yAxis: 0 };
+            const touchpad = gui.addFolder( 'touchpad' );
+            touchpad.add( this.buttonStates.touchpad, 'button' ).listen();
+            touchpad.add( this.buttonStates.touchpad, 'xAxis' ).listen();
+            touchpad.add( this.buttonStates.touchpad, 'yAxis' ).listen();
+        }
+        
+        if ( components.thumbstick !== undefined ){
+            this.buttonStates.thumbstick = { button: 0, xAxis: 0, yAxis: 0 };
+            const thumbstick = gui.addFolder( 'thumbstick' );
+            thumbstick.add( this.buttonStates.thumbstick, 'button' ).listen();
+            thumbstick.add( this.buttonStates.thumbstick, 'xAxis' ).listen();
+            thumbstick.add( this.buttonStates.thumbstick, 'yAxis' ).listen();
+        }
+        
+        this.gui = gui;
+    }
+    
     setupVR(){
         this.renderer.xr.enabled = true;
         
         const button = new VRButton( this.renderer );
+        
+        this.controllerModelFactory = new XRControllerModelFactory();
         
         const self = this;
         
@@ -104,16 +149,17 @@ class App{
                 info.name = profile.profileId;
                 info.targetRayMode = event.data.targetRayMode;
 
-                for( let key1 in profile.layouts){
-                    const components = { };
-                    const layout = profile.layouts[key1];
-                    for(let key2 in layout.components){
-                        const component = layout.components[key2];
-                        components[component.type] = true;
-                    }
-                    info[key1] = components;
-                };
+                Object.entries( profile.layouts ).forEach( ( [key, value] ) => {
+                    const layout = value;
+                    const components = {};
+                    Object.values( layout.components ).forEach( ( component ) => {
+                        components[component.type] = component.gamepadIndices;
+                    });
+                    info[key] = components;
+                });
 
+                self.updateGUI( info.right );
+                
                 console.log( JSON.stringify(info) );
 
                 self.updateControllers( info );
@@ -121,13 +167,33 @@ class App{
             } );
             
         });
+        this.controller.addEventListener( 'disconnected', (event) => {
+            while( self.controller.children.length > 0) self.controller.remove( self.controller.children[0] );
+            self.controller = null;
+            self.controllerGrip = null;
+            while( self.controller1.children.length > 0) self.controller1.remove( self.controller1.children[0] );
+            self.controller1 = null;
+            self.controllerGrip1 = null;
+        })
+        this.scene.add( this.controller );
+        
+        this.controllerGrip = this.renderer.xr.getControllerGrip( 0 );
+        this.controllerGrip.add( this.controllerModelFactory.createControllerModel( this.controllerGrip ));
+        this.scene.add( this.controllerGrip );
+        
+        this.controller1 = this.renderer.xr.getController( 1 );
+        this.scene.add( this.controller1 );
+        
+        this.controllerGrip1 = this.renderer.xr.getControllerGrip( 1 );
+        this.controllerGrip1.add( this.controllerModelFactory.createControllerModel( this.controllerGrip1 ));
+        this.scene.add( this.controllerGrip1 );
         
         this.scene.add(this.highlight);
 
     }
     
     updateControllers(info){
-        const controllerModelFactory = new XRControllerModelFactory();
+        
         const self = this;
         
         function onSelectStart( ){
@@ -137,63 +203,43 @@ class App{
         function onSelectEnd( ){
             this.children[0].scale.z = 0;
             this.userData.selectPressed = false;
+            this.userData.selected = undefined;
         }
 
         function onSqueezeStart( ){
             this.userData.squeezePressed = true;
             if (this.userData.selected !== undefined ){
                 this.attach( this.userData.selected );
+                this.userData.attachedObject = this.userData.selected;
             }
         }
 
         function onSqueezeEnd( ){
             this.userData.squeezePressed = false;
-            if (this.userData.selected !== undefined){
-                this.room.attach( this.userData.selected );
-                this.userData.selected = undefined;
+            if (this.userData.attachedObject !== undefined){
+                self.room.attach( this.userData.attachedObject );
+                this.userData.attachedObject = undefined;
             }
         }
 
+        self.controller = self.renderer.xr.getController(0);
+        self.controller1 = self.renderer.xr.getController(1);
+        
         if (info.right !== undefined){
-            this.controller = self.renderer.xr.getController(0);
-            this.controller.addEventListener( 'disconnected', function () {
-
-                self.controller = null;
-                self.controllerGrip = null;
-
-            } );
+            
             self.buildController( self.controller );
-            self.scene.add( self.controller );
-
-            self.controllerGrip = self.renderer.xr.getControllerGrip( 0 );
-            self.controllerGrip.add( controllerModelFactory.createControllerModel( self.controllerGrip ) );
-            self.scene.add( self.controllerGrip );
-
-            if (info.left.trigger){
+            
+            if (info.right.trigger){
                 self.controller.addEventListener( 'selectstart', onSelectStart );
                 self.controller.addEventListener( 'selectend', onSelectEnd );
             }
 
-            if (info.left.squeeze){
+            if (info.right.squeeze){
                 self.controller.addEventListener( 'squeezestart', onSqueezeStart );
                 self.controller.addEventListener( 'squeezeend', onSqueezeEnd );
             }
         }
-
-        if (info.left){
-            self.controller1 = self.renderer.xr.getController( 1 );
-            self.controller1.addEventListener( 'disconnected', function () {
-
-                self.controller1 = null;
-                self.controllerGrip1 = null;
-
-            } );
-            self.scene.add( self.controller1 );
-
-            self.controllerGrip1 = self.renderer.xr.getControllerGrip( 1 );
-            self.controllerGrip1.add( controllerModelFactory.createControllerModel( self.controllerGrip1 ) );
-            self.scene.add( self.controllerGrip1 );
-        }
+        
     }
     
     buildController( controller ) {
@@ -237,9 +283,35 @@ class App{
         this.renderer.setSize( window.innerWidth, window.innerHeight );  
     }
     
+    getGamepadState(){
+        return;
+        
+        const session = this.renderer.xr.getSession();
+        
+        //Clear existing states
+        Object.values(this.buttonStates).forEach((state) =>{ state = "" });
+        
+        const data = {};
+        const inputSource = session.inputSources[0];
+        if (inputSource && inputSource.gamepad){
+            const gamepad = inputSource.gamepad;
+            let button = gamepad.buttons[2];
+            if (button) this.buttonStates.select = button.value;
+            button = gamepad.buttons[1];
+            if (button) this.buttonStates.squeeze = button.value;
+            button = gamepad.buttons[0];
+            if (button) this.buttonStates.back = button.value;
+            button = gamepad.axes[0];
+            if (button) this.buttonStates.xAxis = button;
+            button = gamepad.axes[1];
+            if (button) this.buttonStates.yAxis = button;
+        }
+    }
+    
 	render( ) {   
         this.stats.update();
         if (this.controller ) this.handleController( this.controller );
+        if (this.renderer.xr.isPresenting) this.getGamepadState();
         this.renderer.render( this.scene, this.camera );
     }
 }
