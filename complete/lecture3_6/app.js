@@ -1,11 +1,17 @@
 import * as THREE from '../../libs/three/three.module.js';
 import { VRButton } from '../../libs/VRButton.js';
+import { XRControllerModelFactory } from '../../libs/three/jsm/XRControllerModelFactory.js';
 import { BoxLineGeometry } from '../../libs/three/jsm/BoxLineGeometry.js';
-import { GLTFLoader } from '../../libs/three/jsm/GLTFLoader.js';
 import { Stats } from '../../libs/stats.module.js';
 import { OrbitControls } from '../../libs/three/jsm/OrbitControls.js';
-import { SpotLightVolumetricMaterial } from '../../libs/SpotLightVolumetricMaterial.js';
+import {
+	Constants as MotionControllerConstants,
+	fetchProfile,
+	MotionController
+} from '../../libs/three/jsm/motion-controllers.module.js';
 
+const DEFAULT_PROFILES_PATH = 'https://cdn.jsdelivr.net/npm/@webxr-input-profiles/assets@1.0/dist/profiles';
+const DEFAULT_PROFILE = 'generic-trigger';
 
 class App{
 	constructor(){
@@ -81,6 +87,95 @@ class App{
         
         this.highlight = new THREE.Mesh( geometry, new THREE.MeshBasicMaterial( { color: 0xffffff, side: THREE.BackSide } ) );
         this.highlight.scale.set(1.2, 1.2, 1.2);
+        
+        this.gui = this.createTextPanel();
+    }
+    
+    createTextPanel(){
+         const container = ThreeMeshUI.Block({
+            width: 1.2,
+            height: 0.5,
+            padding: 0.05,
+            justifyContent: 'center',
+            alignContent: 'left',
+            fontFamily: '../../assets/fonts/roboto/Roboto-msdf.json',
+            fontTexture: '../../assets/fonts/roboto/Roboto-msdf.png'
+        });
+
+	    container.position.set( 0, 1, -1.8 );
+	    container.rotation.x = -0.55;
+        
+        this.guiText = ThreeMeshUI.Text({
+                content: "This will display debugging information",
+                fontSize: 0.055
+            });
+
+        container.add( this.guiText );
+        
+        this.scene.add( container );
+        
+        return container;
+    }
+    
+    //{"trigger":{"button":0},"touchpad":{"button":2,"xAxis":0,"yAxis":1}},"squeeze":{"button":1},"thumbstick":{"button":3,"xAxis":2,"yAxis":3},"button":{"button":6}}}
+    createButtonStates(components){
+
+        this.buttonStates = {};
+        this.gamepadIndices = components;
+        
+        if ( components.trigger !== undefined ){
+            this.buttonStates.trigger = 0;
+        }
+        
+        if ( components.squeeze !== undefined ){
+            this.buttonStates.squeeze = 0;
+        }
+        
+        if ( components.button !== undefined ){
+            this.buttonStates.button = 0;
+        }
+        
+        if ( components.touchpad !== undefined ){
+            this.buttonStates.touchpad = { button: 0, xAxis: 0, yAxis: 0 };
+        }
+        
+        if ( components.thumbstick !== undefined ){
+            this.buttonStates.thumbstick = { button: 0, xAxis: 0, yAxis: 0 };
+        }
+        
+    }
+    
+    updateGUI(){
+        this.guiText.set( { content: JSON.stringify( this.buttonStates )});
+        ThreeMeshUI.update();    
+    }
+    
+    updateGamepadState(){
+        const session = this.renderer.xr.getSession();
+        
+        const inputSource = session.inputSources[0];
+        
+        if (inputSource && inputSource.gamepad && this.gamepadIndices && this.gui && this.buttonStates){
+            const gamepad = inputSource.gamepad;
+            try{
+                Object.entries( this.buttonStates ).forEach( ( [ key, value ] ) => {
+                    const buttonIndex = this.gamepadIndices[key].button;
+                    if ( key == 'touchpad' || key == 'thumbstick'){
+                        const xAxisIndex = this.gamepadIndices[key].xAxis;
+                        const yAxisIndex = this.gamepadIndices[key].yAxis;
+                        this.buttonStates[key].button = gamepad.buttons[buttonIndex].value; 
+                        this.buttonStates[key].xAxis = gamepad.axes[xAxisIndex].toFixed(2); 
+                        this.buttonStates[key].yAxis = gamepad.axes[yAxisIndex].toFixed(2); 
+                    }else{
+                        this.buttonStates[key] = gamepad.buttons[buttonIndex].value;
+                    }
+                    
+                    this.updateGUI();
+                });
+            }catch(e){
+                console.warn("An error occurred setting the gui");
+            }
+        }
     }
     
     setupVR(){
@@ -88,96 +183,128 @@ class App{
         
         const button = new VRButton( this.renderer );
         
+        this.controllerModelFactory = new XRControllerModelFactory();
+        
         const self = this;
         
-        function onSelectStart() {
-            
-            this.userData.selectPressed = true;
-            if (self.spotlight) self.spotlight.visible = true;
-        }
-
-        function onSelectEnd() {
-
-            self.highlight.visible = false;
-            this.userData.selectPressed = false;
-            if (self.spotlight) self.spotlight.visible = false;
-            
-        }
-        
         this.controller = this.renderer.xr.getController( 0 );
-        this.controller.addEventListener( 'selectstart', onSelectStart );
-        this.controller.addEventListener( 'selectend', onSelectEnd );
         this.controller.addEventListener( 'connected', function ( event ) {
+            const info = {};
+            
+            fetchProfile( event.data, DEFAULT_PROFILES_PATH, DEFAULT_PROFILE ).then( ( { profile, assetPath } ) => {
+                info.name = profile.profileId;
+                info.targetRayMode = event.data.targetRayMode;
 
-            self.buildController.call(self, event.data, this );
+                Object.entries( profile.layouts ).forEach( ( [key, value] ) => {
+                    const layout = value;
+                    const components = {};
+                    Object.values( layout.components ).forEach( ( component ) => {
+                        components[component.type] = component.gamepadIndices;
+                    });
+                    info[key] = components;
+                });
 
-        } );
-        this.controller.addEventListener( 'disconnected', function () {
+                self.createButtonStates( info.right );
+                
+                console.log( JSON.stringify(info) );
 
-            while(this.children.length>0) this.remove( this.children[ 0 ] );
+                self.updateControllers( info );
+
+            } );
+            
+        });
+        this.controller.addEventListener( 'disconnected', (event) => {
+            while( self.controller.children.length > 0) self.controller.remove( self.controller.children[0] );
             self.controller = null;
-
-        } );
+            self.controllerGrip = null;
+            while( self.controller1.children.length > 0) self.controller1.remove( self.controller1.children[0] );
+            self.controller1 = null;
+            self.controllerGrip1 = null;
+        })
         this.scene.add( this.controller );
- 
+        
+        this.controllerGrip = this.renderer.xr.getControllerGrip( 0 );
+        this.controllerGrip.add( this.controllerModelFactory.createControllerModel( this.controllerGrip ));
+        this.scene.add( this.controllerGrip );
+        
+        this.controller1 = this.renderer.xr.getController( 1 );
+        this.scene.add( this.controller1 );
+        
+        this.controllerGrip1 = this.renderer.xr.getControllerGrip( 1 );
+        this.controllerGrip1.add( this.controllerModelFactory.createControllerModel( this.controllerGrip1 ));
+        this.scene.add( this.controllerGrip1 );
+        
         this.scene.add(this.highlight);
 
     }
     
-    buildController( data, controller ) {
-        let geometry, material, loader;
+    updateControllers(info){
         
         const self = this;
         
-        switch ( data.targetRayMode ) {
-            
-            case 'tracked-pointer':
-
-                loader = new GLTFLoader().setPath('../../assets/');
-        
-                loader.load( 'flash-light.glb',
-                    ( gltf ) => {
-                        controller.add( gltf.scene );
-                        self.spotlight = new THREE.Group();
-                        const spotlight = new THREE.SpotLight( 0xFFFFFF, 2, 12, Math.PI/15, 0.3 );
-                        geometry = new THREE.CylinderBufferGeometry(0.03, 1, 5, 32, 5, true);
-                        geometry.rotateX( Math.PI/2 );
-                        material = new SpotLightVolumetricMaterial();
-                        const cone = new THREE.Mesh( geometry, material );
-                        cone.translateZ( -2.6 );
-                        //const spotlightHelper = new THREE.SpotLightHelper( spotlight );
-                        //self.scene.add( spotlightHelper );
-                        self.spotlight.add( spotlight.target );
-                        self.spotlight.add( spotlight );
-                        self.spotlight.add( cone );
-                        const pos = new THREE.Vector3(0,0,0);
-                        spotlight.position.copy(pos);
-                        pos.z -= 1;
-                        spotlight.target.position.copy(pos);
-                        spotlight.quaternion.x = 0.7;
-                        controller.add(self.spotlight);
-                        self.spotlight.visible = false;
-                    },
-                    null,
-                    (error) =>  {
-                        console.error( 'An error occurred' );    
-                    }
-                );
-                
-                break;
-                
-            case 'gaze':
-
-                geometry = new THREE.RingBufferGeometry( 0.02, 0.04, 32 ).translate( 0, 0, - 1 );
-                material = new THREE.MeshBasicMaterial( { opacity: 0.5, transparent: true } );
-                controller.add( new THREE.Mesh( geometry, material ) )
-
+        function onSelectStart( ){
+            this.userData.selectPressed = true;
         }
 
+        function onSelectEnd( ){
+            this.children[0].scale.z = 0;
+            this.userData.selectPressed = false;
+            this.userData.selected = undefined;
+        }
+
+        function onSqueezeStart( ){
+            this.userData.squeezePressed = true;
+            if (this.userData.selected !== undefined ){
+                this.attach( this.userData.selected );
+                this.userData.attachedObject = this.userData.selected;
+            }
+        }
+
+        function onSqueezeEnd( ){
+            this.userData.squeezePressed = false;
+            if (this.userData.attachedObject !== undefined){
+                self.room.attach( this.userData.attachedObject );
+                this.userData.attachedObject = undefined;
+            }
+        }
+
+        self.controller = self.renderer.xr.getController(0);
+        self.controller1 = self.renderer.xr.getController(1);
+        
+        if (info.right !== undefined){
+            
+            self.buildController( self.controller );
+            
+            if (info.right.trigger){
+                self.controller.addEventListener( 'selectstart', onSelectStart );
+                self.controller.addEventListener( 'selectend', onSelectEnd );
+            }
+
+            if (info.right.squeeze){
+                self.controller.addEventListener( 'squeezestart', onSqueezeStart );
+                self.controller.addEventListener( 'squeezeend', onSqueezeEnd );
+            }
+        }
+        
     }
+    
+    buildController( controller ) {
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute( 'position', new THREE.Float32BufferAttribute( [ 0, 0, 0, 0, 0, - 1 ], 3 ) );
+                
+        const material = new THREE.LineBasicMaterial( );
+
+        const mesh = new THREE.Line( geometry, material );
+        mesh.scale.z = 0;
+        
+        controller.add(mesh);
+    }
+    
     
     handleController( controller ){
         if (controller.userData.selectPressed ){
+            controller.children[0].scale.z = 10;
+
             this.workingMatrix.identity().extractRotation( controller.matrixWorld );
 
             this.raycaster.ray.origin.setFromMatrixPosition( controller.matrixWorld );
@@ -188,6 +315,8 @@ class App{
             if (intersects.length>0){
                 intersects[0].object.add(this.highlight);
                 this.highlight.visible = true;
+                controller.children[0].scale.z = intersects[0].distance;
+                controller.userData.selected = intersects[0].object;
             }else{
                 this.highlight.visible = false;
             }
@@ -203,6 +332,7 @@ class App{
 	render( ) {   
         this.stats.update();
         if (this.controller ) this.handleController( this.controller );
+        if (this.renderer.xr.isPresenting) this.updateGamepadState();
         this.renderer.render( this.scene, this.camera );
     }
 }
