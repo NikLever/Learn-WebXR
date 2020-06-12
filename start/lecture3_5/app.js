@@ -133,36 +133,7 @@ class App{
             
             case 'tracked-pointer':
 
-                loader = new GLTFLoader().setPath('../../assets/');
-        
-                loader.load( 'flash-light.glb',
-                    ( gltf ) => {
-                        controller.add( gltf.scene );
-                        self.spotlight = new THREE.Group();
-                        const spotlight = new THREE.SpotLight( 0xFFFFFF, 2, 12, Math.PI/15, 0.3 );
-                        geometry = new THREE.CylinderBufferGeometry(0.03, 1, 5, 32, 5, true);
-                        geometry.rotateX( Math.PI/2 );
-                        material = new SpotLightVolumetricMaterial();
-                        const cone = new THREE.Mesh( geometry, material );
-                        cone.translateZ( -2.6 );
-                        //const spotlightHelper = new THREE.SpotLightHelper( spotlight );
-                        //self.scene.add( spotlightHelper );
-                        self.spotlight.add( spotlight.target );
-                        self.spotlight.add( spotlight );
-                        self.spotlight.add( cone );
-                        const pos = new THREE.Vector3(0,0,0);
-                        spotlight.position.copy(pos);
-                        pos.z -= 1;
-                        spotlight.target.position.copy(pos);
-                        spotlight.quaternion.x = 0.7;
-                        controller.add(self.spotlight);
-                        self.spotlight.visible = false;
-                    },
-                    null,
-                    (error) =>  {
-                        console.error( 'An error occurred' );    
-                    }
-                );
+                
                 
                 break;
                 
