@@ -145,13 +145,16 @@ class App{
                         material = new SpotLightVolumetricMaterial();
                         const cone = new THREE.Mesh( geometry, material );
                         cone.translateZ( -2.6 );
-                    
-                        spotlight.position.set(0,0,0);
-                        spotlight.target.position.set(0,0,-1);
+                        //const spotlightHelper = new THREE.SpotLightHelper( spotlight );
+                        //self.scene.add( spotlightHelper );
                         self.spotlight.add( spotlight.target );
                         self.spotlight.add( spotlight );
                         self.spotlight.add( cone );
-                        
+                        const pos = new THREE.Vector3(0,0,0);
+                        spotlight.position.copy(pos);
+                        pos.z -= 1;
+                        spotlight.target.position.copy(pos);
+                        spotlight.quaternion.x = 0.7;
                         controller.add(self.spotlight);
                         self.spotlight.visible = false;
                     },
