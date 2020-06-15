@@ -5,6 +5,8 @@ import { LoadingBar } from '../../libs/LoadingBar.js';
 import { VRButton } from '../../libs/VRButton.js';
 import { XRControllerModelFactory } from '../../libs/three/jsm/XRControllerModelFactory.js';
 import { Stats } from '../../libs/stats.module.js';
+import { CanvasGUI } from '../../libs/CanvasGUI.js';
+import Questions from './questions.js';
 
 class App{
 	constructor(){
@@ -13,13 +15,13 @@ class App{
 
 		this.assetsPath = '../../assets/';
         
-		this.camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 0.01, 500 );
+		this.camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 0.01, 100 );
 		this.camera.position.set( 0, 1.6, 0 );
         
 		this.scene = new THREE.Scene();
         
         this.dolly = new THREE.Group();
-        this.dolly.position.set(0, 0, 2.3);
+        this.dolly.position.set(0, 0, 2.0);
         this.dolly.add( this.camera );
         this.scene.add( this.dolly );
         
@@ -52,6 +54,8 @@ class App{
 		
 		this.loadRoom();
         
+        this.createGUI();
+        
         window.addEventListener( 'resize', this.resize.bind(this) );
 	}
 	
@@ -80,19 +84,14 @@ class App{
                 const animation = gltf.animations[1];
                 const details = animation.name.split('|');
                 const patient = room.getObjectByName(details[0]);
-                self.mixer = new THREE.AnimationMixer( patient );
+                self.mixer = new THREE.AnimationMixer( room );//patient );
                 const action = self.mixer.clipAction( gltf.animations[1] );
                 action.play();
 				
                 room.traverse(function (child) {
     				if (child.isMesh){
-                        //console.log(child.material.name);
-                        //const material = new THREE.MeshBasicMaterial( { map: child.material.map });
-                        //child.material = material;
                         child.material.metalness = 0;
-					}else{
-                        //console.log(child.name);
-                    }
+					}
 				});
                         
                 self.loadingBar.visible = false;
@@ -114,6 +113,89 @@ class App{
 		);
 	}
     
+    /*An element is defined by 
+type: text|image|shape|button
+hover: hex
+active: hex
+position: x,y in pixels of canvas
+width: pixels
+height: pixels
+overflow: fit | scroll | hidden
+textAlign: center | left | right
+fontSize: pixels
+fontColor: hex
+fontFamily: string
+padding: pixels
+backgroundColor: hex
+borderRadius: pixels
+border: width color style
+*/
+    createGUI() {
+        const css = {
+            panelSize: { width: 0.8, height: 1.3 },
+            width: 512,
+            height: 512,
+            opacity: 0.7,
+            body:{
+                fontFamily:'sans', 
+                fontSize:30, 
+                padding:10, 
+                backgroundColor: '#000', 
+                fontColor:'#fff', 
+                borderRadius: 6,
+                border:{ width: 2, color:"#fff", style:"solid" },
+                opacity: 0.7
+            },
+            header:{
+                type: "text",
+                position:{ x:0, y:0 },
+                height: 40
+            },
+            panel:{
+                type: "text",
+                position:{ x:0, y:40 },
+                height: 432,
+                backgroundColor: "#ffa",
+                fontColor: "#000",   
+                overflow: "scroll"
+            },
+            prev:{
+                type: "button",
+                position: { x:0, y: 472 },
+                width: 40,
+                height: 40
+            },
+            next:{
+                type: "button",
+                position: { x:40, y: 472 },
+                width: 40,
+                height: 40
+            },
+            continue:{
+                type: "button",
+                position: { x:212, y: 472 },
+                width: 300,
+                height: 40
+            }
+        }
+        const content = {
+            header: "Intro",
+            panel: Questions.intro,
+            prev: "<path>m 5 20 l 35 35 l 35 5 z</path>",
+            next: "<path>m 35 20 l 5 5 l 5 35 z</path>",
+            continue: "Continue"
+        }
+        
+        const gui = new CanvasGUI( content, css );
+        gui.mesh.position.set(-0.5, 1.0, -1.2);
+        gui.mesh.rotation.x = -0.2;
+        gui.mesh.material.opacity = 0.7;
+        
+        this.dolly.add( gui.mesh );
+        
+        this.gui = gui;
+    }
+    
     setupVR(){
         this.renderer.xr.enabled = true;
 
@@ -125,6 +207,7 @@ class App{
         this.controller = this.renderer.xr.getController( 0 );
         this.controller.addEventListener( 'selectstart', this.onSelectStart.bind(this) );
         this.controller.addEventListener( 'selectend', this.onSelectEnd.bind(this) );
+        this.controller.addEventListener( 'disconnected', this.controllerDisconnected.bind(this) );
         this.dolly.add( this.controller );
 
         const controllerModelFactory = new XRControllerModelFactory();
@@ -147,21 +230,34 @@ class App{
         this.renderer.setAnimationLoop( this.render.bind(this) );
     }
     
+    controllerDisconnected(){
+        this.controller.remove( this.controller.children[0] );
+        this.controller = null;
+        this.controllerGrip = null;
+    }
+    
     onSelectStart( event ) {
         
-        this.selectPressed = true;
+        this.children[0].scale.z = 10;
+        this.userData.selectPressed = true;
         
     }
 
     onSelectEnd( event ) {
         
-        this.selectPressed = false;
+        this.children[0].scale.z = 10;
+        this.userData.selectPressed = false;
+        
+    }
+    
+    handleController( controller ){
         
     }
 		
-	render( timestamp, frame ){
+	render( ){
+        ThreeMeshUI.update();
         const dt = this.clock.getDelta();
-        if (this.mixer) this.mixer.update(dt);
+        if ( this.mixer !== undefined ) this.mixer.update(dt);
         this.stats.update();
 		this.renderer.render(this.scene, this.camera);
 	}

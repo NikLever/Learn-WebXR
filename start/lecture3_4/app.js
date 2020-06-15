@@ -86,19 +86,6 @@ class App{
         
         const self = this;
         
-        function onSelectStart() {
-            
-            this.userData.selectPressed = true;
-        }
-
-        function onSelectEnd() {
-
-            this.children[0].scale.z = 0;
-            self.highlight.visible = false;
-            this.userData.selectPressed = false;
-            
-        }
-        
         this.controller = this.renderer.xr.getController( 0 );
         this.controller.addEventListener( 'connected', function ( event ) {
 
