@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<canvas id="myCanvas" width="300" height="200"
+style="border:1px solid #d3d3d3;">
+Your browser does not support the canvas element.
+</canvas>
+
+<script>
+var canvas = document.getElementById("myCanvas");
+var context=canvas.getContext("2d");
+context.fillStyle = "red";
+const code = "m 5 20 l 35 35 l 35 5 z".toUpperCase();
+const tokens = code.split(' ');
+context.beginPath();
+  while(tokens.length>0){
+    const token = tokens.shift();
+    switch(token){
+      case 'M':
+        context.moveTo(Number(tokens.shift()), Number(tokens.shift()));
+        break;
+      case 'L':
+        context.lineTo(Number(tokens.shift()), Number(tokens.shift()));
+        break;
+      case 'Z':
+        context.closePath();
+        break;
+      }
+  }
+  context.fill();
+</script>
+
+</body>
+</html>

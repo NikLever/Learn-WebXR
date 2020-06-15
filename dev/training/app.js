@@ -48,6 +48,7 @@ class App{
         this.clock = new THREE.Clock();
         this.up = new THREE.Vector3(0,1,0);
         this.origin = new THREE.Vector3();
+        this.workingMatrix = new THREE.Matrix4();
         this.raycaster = new THREE.Raycaster();
         
 		this.loadingBar = new LoadingBar();
@@ -131,15 +132,19 @@ borderRadius: pixels
 border: width color style
 */
     createGUI() {
+        const headerHeight = 50;
+        const panelHeight = 512;
+        const footerHeight = headerHeight;
+        
         const css = {
             panelSize: { width: 0.8, height: 1.3 },
             width: 512,
-            height: 512,
+            height: panelHeight,
             opacity: 0.7,
             body:{
-                fontFamily:'sans', 
+                fontFamily:'Arial', 
                 fontSize:30, 
-                padding:10, 
+                padding:20, 
                 backgroundColor: '#000', 
                 fontColor:'#fff', 
                 borderRadius: 6,
@@ -149,33 +154,41 @@ border: width color style
             header:{
                 type: "text",
                 position:{ x:0, y:0 },
-                height: 40
+                height: headerHeight
             },
             panel:{
                 type: "text",
-                position:{ x:0, y:40 },
-                height: 432,
+                position:{ x:0, y:headerHeight },
+                height: panelHeight - headerHeight - footerHeight,
                 backgroundColor: "#ffa",
                 fontColor: "#000",   
-                overflow: "scroll"
+                overflow: "scroll", 
+                leading: 5
             },
             prev:{
+                display: 'none',
                 type: "button",
-                position: { x:0, y: 472 },
-                width: 40,
-                height: 40
+                position: { x:0, y: panelHeight - footerHeight + 5},
+                width: footerHeight,
+                height: footerHeight,
+                fontColor: "#ff4"
             },
             next:{
+                display: 'none',
                 type: "button",
-                position: { x:40, y: 472 },
-                width: 40,
-                height: 40
+                position: { x:footerHeight, y: panelHeight - footerHeight + 5},
+                width: footerHeight,
+                height: footerHeight,
+                fontColor: "#ff4"
             },
             continue:{
                 type: "button",
-                position: { x:212, y: 472 },
+                position: { x:212, y: panelHeight - footerHeight },
+                textAlign: "right",
                 width: 300,
-                height: 40
+                height: footerHeight,
+                hover: "#ff0",
+                fontColor: "#ff4"
             }
         }
         const content = {
@@ -187,7 +200,7 @@ border: width color style
         }
         
         const gui = new CanvasGUI( content, css );
-        gui.mesh.position.set(-0.5, 1.0, -1.2);
+        gui.mesh.position.set(-0.5, 1.0, -2);
         gui.mesh.rotation.x = -0.2;
         gui.mesh.material.opacity = 0.7;
         
@@ -216,6 +229,17 @@ border: width color style
         this.controllerGrip.add( controllerModelFactory.createControllerModel( this.controllerGrip ) );
         this.dolly.add( this.controllerGrip );
         
+        // controller
+        this.controller1 = this.renderer.xr.getController( 1 );
+        this.controller1.addEventListener( 'selectstart', this.onSelectStart.bind(this) );
+        this.controller1.addEventListener( 'selectend', this.onSelectEnd.bind(this) );
+        this.controller1.addEventListener( 'disconnected', this.controllerDisconnected.bind(this) );
+        this.dolly.add( this.controller1 );
+
+        this.controllerGrip1 = this.renderer.xr.getControllerGrip( 1 );
+        this.controllerGrip1.add( controllerModelFactory.createControllerModel( this.controllerGrip1 ) );
+        this.dolly.add( this.controllerGrip1 );
+        
         //
         const geometry = new THREE.BufferGeometry().setFromPoints( [ new THREE.Vector3( 0, 0, 0 ), new THREE.Vector3( 0, 0, - 1 ) ] );
 
@@ -224,6 +248,7 @@ border: width color style
 		line.scale.z = 0;
 
         this.controller.add( line.clone() );
+        this.controller1.add( line.clone() );
         
         this.selectPressed = false;
         
@@ -238,26 +263,39 @@ border: width color style
     
     onSelectStart( event ) {
         
-        this.children[0].scale.z = 10;
-        this.userData.selectPressed = true;
+        this.gui.select( );
         
     }
 
     onSelectEnd( event ) {
         
-        this.children[0].scale.z = 10;
-        this.userData.selectPressed = false;
-        
     }
     
     handleController( controller ){
-        
+        this.workingMatrix.identity().extractRotation( controller.matrixWorld );
+
+        this.raycaster.ray.origin.setFromMatrixPosition( controller.matrixWorld );
+        this.raycaster.ray.direction.set( 0, 0, - 1 ).applyMatrix4( this.workingMatrix );
+
+        const intersects = this.raycaster.intersectObject( this.gui.mesh );
+
+        if (intersects.length>0){
+            this.gui.hover( intersects[0].point );
+            controller.children[0].scale.z = intersects[0].distance;
+        }else{
+            this.gui.hover();
+            controller.children[0].scale.z = 10;
+        }
     }
 		
 	render( ){
         ThreeMeshUI.update();
         const dt = this.clock.getDelta();
         if ( this.mixer !== undefined ) this.mixer.update(dt);
+        if (this.renderer.xr.isPresenting){
+            this.handleController( this.controller );
+            //this.handleController( this.controller1 );
+        }
         this.stats.update();
 		this.renderer.render(this.scene, this.camera);
 	}

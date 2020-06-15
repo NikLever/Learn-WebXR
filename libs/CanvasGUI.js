@@ -31,8 +31,8 @@ class CanvasGUI{
         const opacity = css.opacity | 1.0;
 		
         const planeMaterial = new MeshBasicMaterial({ transparent: true, opacity });
-        this.panelsize = css.panelsize | { width:0.5, height:0.5 }
-		const planeGeometry = new PlaneGeometry(this.panelsize.width, this.panelsize.height);
+        this.panelSize = ( css.panelSize !== undefined) ? css.panelSize : { width:0.5, height:0.5 }
+		const planeGeometry = new PlaneGeometry(this.panelSize.width, this.panelSize.height);
 		
 		this.mesh = new Mesh(planeGeometry, planeMaterial);
         
@@ -99,7 +99,7 @@ class CanvasGUI{
         
         this.content[name] = elm;
         
-        update();
+        this.update();
     }
     
     get panel(){
@@ -107,21 +107,55 @@ class CanvasGUI{
     }
 
     getElementAtLocation( x, y ){
-        
+        const self = this;
+        const elms = Object.entries( this.css ).filter( ([ name, elm ]) => {
+            if (typeof elm === 'object' && name !== 'panelSize' && name !== 'body'){
+                const pos = elm.position;
+                const width = (elm.width !== undefined) ? elm.width : self.css.width;
+                const height = (elm.height !== undefined) ? elm.height : self.css.height;
+                return (x>=pos.x && x<(pos.x+width) && y>=pos.y && y<(pos.y + height));
+            }
+        });
+        //console.log(`selected = ${elms[0][0]}`);
+        return this.css[elms[0][0]];
     }
 
     updateCSS( name, property, value ){   
-        update();
+        this.update();
     }
 
-    hover( x, y ){
-        const elm = getElementAtLocation( x, y );
-        update();
+    hover( position ){
+        if (position === undefined){
+            if (this.selectedElement !== undefined){
+                this.selectedElement = undefined;
+                this.update();
+            }
+        }else{
+            const localPos = this.mesh.worldToLocal( position );
+            //Convert + and - half panelSize to 0 to 1
+            localPos.x /= this.panelSize.width;
+            localPos.y /= this.panelSize.height;
+            localPos.addScalar(0.5);
+            //Invert the y axis
+            localPos.y = 1 - localPos.y;
+            const x = localPos.x * this.css.width;
+            const y = localPos.y * this.css.height;
+            //console.log( `hover localPos:${localPos.x.toFixed(2)},${localPos.y.toFixed(2)}>>texturePos:${x.toFixed(0)}, ${y.toFixed(0)}`);
+            const elm = this.getElementAtLocation( x, y );
+            if (this.selectedElement !== elm){
+                this.selectedElement = elm;
+                this.update();
+            }
+        }
     }
-
-    select( x, y ){
-        const elm = getElementAtLocation( x, y );
-        update();
+    
+    select( ){
+        if (this.selectedElement !== undefined){
+            if (this.selectedElement.onSelect){
+                this.selectedElement.onSelect();
+            }
+            this.selectedElement = undefined;
+        }
     }
     
 	update(){
@@ -145,41 +179,62 @@ class CanvasGUI{
         
         Object.entries(this.content).forEach( ([name, content]) => {
             const css = (self.css[name]!==undefined) ? self.css[name] : self.css.body;
-            context.clip( css.clipPath );
+            const display = (css.display !== undefined) ? css.display : 'block';
             
-            const pos = (css.position!==undefined) ? css.position : { x: 0, y: 0 };
-            const width = (css.width!==undefined) ? css.width : self.css.width;
-            const height = (css.height!==undefined) ? css.height : self.css.height;
-            
-            if ( css.backgroundColor !== undefined){
-                context.fillStyle = css.backgroundColor;
-                context.fillRect( pos.x, pos.y, width, height );
-            }
-            
-            if (css.type == "text" || css.type == "button"){
-                context.fillStyle = css.fontColor | fontColor;
-                if (content.toLowerCase().startsWith("<path>")){
-                    const code = content.toUpperCase().substring(6, content.length - 7);
-                    const tokens = code.split(' ');
-                    context.beginPath();
-                    while(tokens.length>0){
-                        const token = tokens.shift();
-                        let cmd;
-                        switch(token){
-                            case 'M':
-                                context.moveTo(tokens.shift(), tokens.shift());
-                                break;
-                            case 'L':
-                                context.moveTo(tokens.shift(), tokens.shift());
-                                break;
-                            case 'z':
-                                context.closePath();
-                                break
-                        }
+            if (display !== 'none'){
+                self.setClip( css );
+
+                const pos = (css.position!==undefined) ? css.position : { x: 0, y: 0 };
+                const width = (css.width!==undefined) ? css.width : self.css.width;
+                const height = (css.height!==undefined) ? css.height : self.css.height;
+
+                if ( css.backgroundColor !== undefined){
+                    context.fillStyle = css.backgroundColor;
+                    context.fillRect( pos.x, pos.y, width, height );
+                }
+
+                if (css.type == "text" || css.type == "button"){
+                    let stroke = false;
+                    if (self.selectedElement !== undefined && this.selectedElement === css){
+                        context.fillStyle = (css.hover !== undefined) ? css.hover : fontColor;
+                        stroke = (css.hover === undefined);
+                    }else{
+                        context.fillStyle = (css.fontColor !== undefined) ? css.fontColor : fontColor;
                     }
-                    context.fill();
-                }else{
-                    self.wrapText( name, content )
+                    
+                    if (content.toLowerCase().startsWith("<path>")){
+                        const code = content.toUpperCase().substring(6, content.length - 7);
+                        const tokens = code.split(' ');
+                        context.beginPath();
+                        while(tokens.length>0){
+                            const token = tokens.shift();
+                            let cmd;
+                            switch(token){
+                                case 'M':
+                                    context.moveTo(Number(tokens.shift()) + pos.x, Number(tokens.shift()) + pos.y);
+                                    break;
+                                case 'L':
+                                    context.lineTo(Number(tokens.shift()) + pos.x, Number(tokens.shift()) + pos.y);
+                                    break;
+                                case 'Z':
+                                    context.closePath();
+                                    break
+                            }
+                        }
+                        context.fill();
+                    }else{
+                        self.wrapText( name, content )
+                    }
+
+                    if (stroke){
+                        context.beginPath();
+                        context.strokeStyle = "#fff";
+                        context.lineWidth = 2;
+                        context.rect( pos.x, pos.y, width, height);
+                        context.stroke();
+                    }
+                    
+                    context.restore();
                 }
             }
         })
@@ -202,22 +257,25 @@ class CanvasGUI{
         const width = (css.width!==undefined) ? css.width : this.css.width;
         const height = (css.height!==undefined) ? css.height : this.css.height;
         const pos = (css.position!==undefined) ? css.position : { x:0, y:0 };
-        const rect = { x:pos.x, y:pos.y, width, height};
-        const padding = css.padding | this.css.body.padding | 10;
-        const fontSize = css.fontSize | this.css.body.fontSize | 30;
-        const fontFamily = (css.fontFamily!==undefined) ? css.fontFamily : (this.css.body.fontFamily!==undefined) ? this.css.body.fontFamily : 'sans';
-		const maxWidth = rect.width - 2*padding;
-		const lineHeight = fontSize + 8;
+        const padding = (css.padding!==undefined) ? css.padding : (this.css.body.padding!==undefined) ? this.css.body.padding : 10;
+        const rect = { x:pos.x+padding, y:pos.y+padding, width: width - 2*padding, height: height - 2*padding};
+        const textAlign = (css.textAlign !== undefined) ? css.textAlign : (this.css.body.textAlign !== undefined) ? this.css.body.textAlign : "left";
+        const fontSize = (css.fontSize !== undefined ) ? css.fontSize : ( this.css.body.fontSize !== undefined) ? this.css.body.fontSize : 30;
+        const fontFamily = (css.fontFamily!==undefined) ? css.fontFamily : (this.css.body.fontFamily!==undefined) ? this.css.body.fontFamily : 'Arial';
+        const leading = (css.leading !== undefined) ? css.leading : (this.css.body.leading !== undefined) ? this.css.body.leading : 8;
+		const lineHeight = fontSize + leading;
         
         const context = this.context;
         
-		context.font = `${fontSize}pt ${fontFamily}`;
+        context.textAlign = textAlign;
+        
+		context.font = `${fontSize}px ${fontFamily}`;
 		
         words.forEach( function(word){
 			const testLine = `${line}${word} `;
         	const metrics = context.measureText(testLine);
         	const testWidth = metrics.width;
-			if (testWidth > maxWidth) {
+			if (testWidth > rect.width) {
 				lines.push(line);
 				line = `${word} `;
 			}else {
@@ -227,11 +285,23 @@ class CanvasGUI{
 		
 		if (line != '') lines.push(line);
 		
-		let y = rect.height - lines.length * lineHeight;
-		const centerX = rect.x + rect.width/2;
+		let y = rect.y + fontSize/2;
+		let x;
+        
+        switch( textAlign ){
+            case "center":
+                x = rect.x + rect.width/2;
+                break;
+            case "right":
+                x = rect.x + rect.width;
+                break;
+            default:
+                x = rect.x;
+                break;
+        }
         
 		lines.forEach( (line) => {
-			context.fillText(line, centerX, y);
+			context.fillText(line, x, y);
 			y += lineHeight;
 		});
 	}
