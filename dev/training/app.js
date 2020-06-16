@@ -136,6 +136,67 @@ border: width color style
         const panelHeight = 512;
         const footerHeight = headerHeight;
         
+        const self = this;
+        let questionIndex = -1;
+        let answerIndex = 0;
+        
+        function showOption(){
+            const options = Questions.questions[questionIndex].options;
+            if (answerIndex<0) answerIndex = 0;
+            if (answerIndex>=options.length) answerIndex = options.length - 1;
+            let display = (answerIndex>0) ? "block" : "none";
+            self.gui.updateCSS("prev", "display", display);
+            display = (answerIndex<(options.length-1)) ? "block" : "none";
+            self.gui.updateCSS("next", "display", display);
+            self.gui.updateElement("panel", options[answerIndex].text);
+        }
+        
+        function showQuestion(){
+            const question = Questions.questions[questionIndex];
+            self.gui.updateElement( "header", "Question");
+            self.gui.updateElement("panel", question.text);
+            self.gui.updateCSS("prev", "display", "none");
+            self.gui.updateCSS("next", "display", "none");
+        }
+        
+        function onPrev(){
+            answerIndex--;
+            showOption();
+        }
+        
+        function onNext(){
+            answerIndex++;
+            showOption();
+        }
+        
+        function onContinue(){
+            if (questionIndex<0){
+                //Coming from intro
+                questionIndex = 0;
+                answerIndex = -2;
+            }
+            
+            let display;
+            if (answerIndex==-2){
+                //Show question text
+                showQuestion()
+                answerIndex = -1;
+            }else if (answerIndex==-1){
+                //Show first option
+                self.gui.updateElement( "header", "Select a response");
+                answerIndex = 0;
+                showOption();
+            }else{
+                //Option selected
+                const question = Questions.questions[questionIndex];
+                questionIndex = question.options[answerIndex].next;
+                if (questionIndex!=-1){
+                    answerIndex = -2;
+                    showQuestion();
+                }
+            }
+        }
+        
         const css = {
             panelSize: { width: 0.8, height: 1.3 },
             width: 512,
@@ -171,7 +232,8 @@ border: width color style
                 position: { x:0, y: panelHeight - footerHeight + 5},
                 width: footerHeight,
                 height: footerHeight,
-                fontColor: "#ff4"
+                fontColor: "#ff4",
+                onSelect: onPrev
             },
             next:{
                 display: 'none',
@@ -179,7 +241,8 @@ border: width color style
                 position: { x:footerHeight, y: panelHeight - footerHeight + 5},
                 width: footerHeight,
                 height: footerHeight,
-                fontColor: "#ff4"
+                fontColor: "#ff4",
+                onSelect: onNext
             },
             continue:{
                 type: "button",
@@ -188,7 +251,8 @@ border: width color style
                 width: 300,
                 height: footerHeight,
                 hover: "#ff0",
-                fontColor: "#ff4"
+                fontColor: "#ff4",
+                onSelect: onContinue
             }
         }
         const content = {
@@ -289,7 +353,7 @@ border: width color style
     }
 		
 	render( ){
-        ThreeMeshUI.update();
+        if (this.gui !== undefined) this.gui.update();
         const dt = this.clock.getDelta();
         if ( this.mixer !== undefined ) this.mixer.update(dt);
         if (this.renderer.xr.isPresenting){

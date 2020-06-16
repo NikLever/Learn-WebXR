@@ -151,31 +151,7 @@ class App{
     }
     
     updateGamepadState(){
-        const session = this.renderer.xr.getSession();
         
-        const inputSource = session.inputSources[0];
-        
-        if (inputSource && inputSource.gamepad && this.gamepadIndices && this.gui && this.buttonStates){
-            const gamepad = inputSource.gamepad;
-            try{
-                Object.entries( this.buttonStates ).forEach( ( [ key, value ] ) => {
-                    const buttonIndex = this.gamepadIndices[key].button;
-                    if ( key == 'touchpad' || key == 'thumbstick'){
-                        const xAxisIndex = this.gamepadIndices[key].xAxis;
-                        const yAxisIndex = this.gamepadIndices[key].yAxis;
-                        this.buttonStates[key].button = gamepad.buttons[buttonIndex].value; 
-                        this.buttonStates[key].xAxis = gamepad.axes[xAxisIndex].toFixed(2); 
-                        this.buttonStates[key].yAxis = gamepad.axes[yAxisIndex].toFixed(2); 
-                    }else{
-                        this.buttonStates[key] = gamepad.buttons[buttonIndex].value;
-                    }
-                    
-                    this.updateGUI();
-                });
-            }catch(e){
-                console.warn("An error occurred setting the gui");
-            }
-        }
     }
     
     setupVR(){
@@ -189,29 +165,6 @@ class App{
         
         this.controller = this.renderer.xr.getController( 0 );
         this.controller.addEventListener( 'connected', function ( event ) {
-            const info = {};
-            
-            fetchProfile( event.data, DEFAULT_PROFILES_PATH, DEFAULT_PROFILE ).then( ( { profile, assetPath } ) => {
-                info.name = profile.profileId;
-                info.targetRayMode = event.data.targetRayMode;
-
-                Object.entries( profile.layouts ).forEach( ( [key, value] ) => {
-                    const layout = value;
-                    const components = {};
-                    Object.values( layout.components ).forEach( ( component ) => {
-                        components[component.type] = component.gamepadIndices;
-                    });
-                    info[key] = components;
-                });
-
-                self.createButtonStates( info.right );
-                
-                console.log( JSON.stringify(info) );
-
-                self.updateControllers( info );
-
-            } );
-            
         });
         this.controller.addEventListener( 'disconnected', (event) => {
             while( self.controller.children.length > 0) self.controller.remove( self.controller.children[0] );

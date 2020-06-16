@@ -27,6 +27,7 @@ class CanvasGUI{
         
         const canvas = this.createOffscreenCanvas(this.css.width, this.css.height);
         this.context = canvas.getContext('2d');
+        this.context.save();
         
         const opacity = css.opacity | 1.0;
 		
@@ -50,17 +51,19 @@ class CanvasGUI{
         });
 
         this.content = content;
+        this.needsUpdate = true;
         
         this.update();
 	}
 	
     setClip( elm ){
-        //const clipPath = new Path2D();
         const pos = (elm.position!==undefined) ? elm.position : { x:0, y: 0 };
         const borderRadius = elm.borderRadius | this.css.borderRadius | 0;
         const width = elm.width | this.css.width;
         const height = elm.height | this.css.height;
         const context = this.context;
+        context.restore();
+        context.save();
         context.beginPath();
         if (borderRadius !== 0){
             const angle = Math.PI/2;
@@ -93,13 +96,20 @@ class CanvasGUI{
     updateElement( name, content ){
         let elm = this.content[name];
         
-        if (elm===undefined) elm = { };
+        if (elm===undefined){
+            console.warn( `CanvasGUI.updateElement: No ${name} found`);
+            return;
+        }
         
-        elm.content = content;
+        if (typeof elm === 'object'){
+            elm.content = content;
+        }else{
+            elm = content;
+        }
         
         this.content[name] = elm;
         
-        this.update();
+        this.needsUpdate = true;
     }
     
     get panel(){
@@ -120,15 +130,24 @@ class CanvasGUI{
         return this.css[elms[0][0]];
     }
 
-    updateCSS( name, property, value ){   
-        this.update();
+    updateCSS( name, property, value ){  
+        let elm = this.css[name];
+        
+        if (elm===undefined){
+            console.warn( `CanvasGUI.updateCSS: No ${name} found`);
+            return;
+        }
+        
+        elm[property] = value;
+        
+        this.needsUpdate = true;
     }
 
     hover( position ){
         if (position === undefined){
             if (this.selectedElement !== undefined){
                 this.selectedElement = undefined;
-                this.update();
+                this.needsUpdate = true;
             }
         }else{
             const localPos = this.mesh.worldToLocal( position );
@@ -144,9 +163,10 @@ class CanvasGUI{
             const elm = this.getElementAtLocation( x, y );
             if (this.selectedElement !== elm){
                 this.selectedElement = elm;
-                this.update();
+                this.needsUpdate = true;
             }
         }
+         
     }
     
     select( ){
@@ -159,7 +179,7 @@ class CanvasGUI{
     }
     
 	update(){
-		if (this.mesh===undefined) return;
+		if (this.mesh===undefined || !this.needsUpdate) return;
 		
 		let context = this.context;
 		
@@ -170,10 +190,9 @@ class CanvasGUI{
         const fontColor = ( this.css.body.fontColor ) ? this.css.body.fontColor : "#fff";
         const fontSize = ( this.css.body.fontSize ) ? this.css.body.fontSize : 30;
         context.fillStyle = bgColor;
-        context.save();
+        context.restore();
         this.setClip(this.css.body);
         context.fillRect( 0, 0, this.css.width, this.css.height);
-        context.restore();
         
         const self = this;
         
@@ -182,6 +201,7 @@ class CanvasGUI{
             const display = (css.display !== undefined) ? css.display : 'block';
             
             if (display !== 'none'){
+                context.restore();         
                 self.setClip( css );
 
                 const pos = (css.position!==undefined) ? css.position : { x: 0, y: 0 };
@@ -233,12 +253,11 @@ class CanvasGUI{
                         context.rect( pos.x, pos.y, width, height);
                         context.stroke();
                     }
-                    
-                    context.restore();
                 }
             }
         })
 		
+        this.needsUpdate = false;
 		this.texture.needsUpdate = true;
 	}
 	
@@ -250,6 +269,7 @@ class CanvasGUI{
 	}
 	
 	wrapText(name, txt){
+        console.log( `wrapText: ${name}:${txt}`);
 		const words = txt.split(' ');
         let line = '';
 		const lines = [];
