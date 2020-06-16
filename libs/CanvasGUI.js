@@ -126,8 +126,9 @@ class CanvasGUI{
                 return (x>=pos.x && x<(pos.x+width) && y>=pos.y && y<(pos.y + height));
             }
         });
-        //console.log(`selected = ${elms[0][0]}`);
-        return this.css[elms[0][0]];
+        const elm = (elms.length==0) ? null : this.css[elms[0][0]];
+        //console.log(`selected = ${elm}`);
+        return elm;
     }
 
     updateCSS( name, property, value ){  
@@ -161,7 +162,12 @@ class CanvasGUI{
             const y = localPos.y * this.css.height;
             //console.log( `hover localPos:${localPos.x.toFixed(2)},${localPos.y.toFixed(2)}>>texturePos:${x.toFixed(0)}, ${y.toFixed(0)}`);
             const elm = this.getElementAtLocation( x, y );
-            if (this.selectedElement !== elm){
+            if (elm===null){
+                if ( this.selectedElement !== undefined ){
+                    this.selectedElement = undefined;
+                    this.needsUpdate = true;
+                }
+            }else if( this.selectedElement !== elm ){
                 this.selectedElement = elm;
                 this.needsUpdate = true;
             }
@@ -216,7 +222,7 @@ class CanvasGUI{
                 if (css.type == "text" || css.type == "button"){
                     let stroke = false;
                     if (self.selectedElement !== undefined && this.selectedElement === css){
-                        context.fillStyle = (css.hover !== undefined) ? css.hover : fontColor;
+                        context.fillStyle = (css.hover !== undefined) ? css.hover : ( css.fontColor !== undefined) ? css.fontColor : fontColor;
                         stroke = (css.hover === undefined);
                     }else{
                         context.fillStyle = (css.fontColor !== undefined) ? css.fontColor : fontColor;

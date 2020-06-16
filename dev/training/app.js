@@ -51,6 +51,10 @@ class App{
         this.workingMatrix = new THREE.Matrix4();
         this.raycaster = new THREE.Raycaster();
         
+        // create an AudioListener and add it to the camera
+        this.listener = new THREE.AudioListener();
+        this.camera.add( this.listener );
+        
 		this.loadingBar = new LoadingBar();
 		
 		this.loadRoom();
@@ -115,13 +119,11 @@ class App{
 	}
     
     /*An element is defined by 
-type: text|image|shape|button
+type: text|button
 hover: hex
-active: hex
-position: x,y in pixels of canvas
+position: x,y in pixels of canvas 0,0 = top left
 width: pixels
 height: pixels
-overflow: fit | scroll | hidden
 textAlign: center | left | right
 fontSize: pixels
 fontColor: hex
@@ -130,6 +132,7 @@ padding: pixels
 backgroundColor: hex
 borderRadius: pixels
 border: width color style
+onSelect: function
 */
     createGUI() {
         const headerHeight = 50;
@@ -137,8 +140,19 @@ border: width color style
         const footerHeight = headerHeight;
         
         const self = this;
+        
         let questionIndex = -1;
         let answerIndex = 0;
+        
+        function showIntro(){
+            self.gui.updateElement( "header", "Intro");
+            self.gui.updateElement("panel", Questions.intro);
+            self.gui.updateCSS("prev", "display", "none");
+            self.gui.updateCSS("next", "display", "none");
+            self.playSound(`intro`); 
+            questionIndex = 0;
+            answerIndex = -1;
+        }
         
         function showOption(){
             const options = Questions.questions[questionIndex].options;
@@ -148,15 +162,17 @@ border: width color style
             self.gui.updateCSS("prev", "display", display);
             display = (answerIndex<(options.length-1)) ? "block" : "none";
             self.gui.updateCSS("next", "display", display);
+            self.gui.updateElement( "header", "Select a response");
             self.gui.updateElement("panel", options[answerIndex].text);
         }
         
         function showQuestion(){
             const question = Questions.questions[questionIndex];
-            self.gui.updateElement( "header", "Question");
+            self.gui.updateElement( "header", "Heather");
             self.gui.updateElement("panel", question.text);
             self.gui.updateCSS("prev", "display", "none");
             self.gui.updateCSS("next", "display", "none");
+            self.playSound(`option${questionIndex + 1}`);
         }
         
         function onPrev(){
@@ -173,25 +189,20 @@ border: width color style
             if (questionIndex<0){
                 //Coming from intro
                 questionIndex = 0;
-                answerIndex = -2;
-            }
-            
-            let display;
-            if (answerIndex==-2){
-                //Show question text
                 showQuestion()
                 answerIndex = -1;
             }else if (answerIndex==-1){
                 //Show first option
-                self.gui.updateElement( "header", "Select a response");
                 answerIndex = 0;
                 showOption();
             }else{
                 //Option selected
                 const question = Questions.questions[questionIndex];
                 questionIndex = question.options[answerIndex].next;
-                if (questionIndex!=-1){
-                    answerIndex = -2;
+                if (questionIndex==-1){
+                    showIntro();
+                }else{
+                    answerIndex = -1;
                     showQuestion();
                 }
             }
@@ -273,18 +284,77 @@ border: width color style
         this.gui = gui;
     }
     
+    playSound( sndname ){
+        // load a sound and set it as the Audio object's buffer
+        const sound = this.speech;
+        
+        const audioLoader = new THREE.AudioLoader();
+        audioLoader.load( `audio/${sndname}.mp3`, ( buffer ) => {
+            if (sound.isPlaying) sound.stop();
+            sound.setBuffer( buffer );
+            sound.setLoop( false );
+            sound.setVolume( 1.0 );
+            sound.play();
+        });
+    }
+    
     setupVR(){
         this.renderer.xr.enabled = true;
 
         const self = this;
         
-        const button = new VRButton( this.renderer );
+        function onSessionStart(){
+            // create a global audio source
+            if (self.speech === undefined){
+                const atmos = new THREE.Audio( self.listener );
+
+                // load a sound and set it as the Audio object's buffer
+                const audioLoader = new THREE.AudioLoader();
+                audioLoader.load( 'audio/atmos.mp3', ( buffer ) => {
+                    atmos.setBuffer( buffer );
+                    atmos.setLoop( true );
+                    atmos.setVolume( 0.5 );
+                    atmos.play();
+                });
+                
+                self.atmos = atmos;
+                
+                self.speech = new THREE.Audio( self.listener );
+            }else{
+                self.atmos.play();
+            }
+            self.playSound( 'intro' );
+        }
+        
+        function onSessionEnd(){
+            if (self.speech && self.speech.isPlaying) self.speech.stop();
+            if (self.atmos && self.atmos.isPlaying) self.atmos.pause();
+        }
+        
+        function onDisconnected( event ){
+            const controller = event.target;
+            if (controller.children.length>0) controller.remove( controller.children[0] );
+            if (controller == self.controller){
+                self.controller = null;
+                self.controllerGrip = null;
+            }else{
+                self.controller1 = null;
+                self.controllerGrip1 = null;
+            }
+        }
+    
+        function onSelectStart( event ) {
+
+            if ( self.gui!==undefined ) self.gui.select( );
+
+        }
+
+        const button = new VRButton( this.renderer, onSessionStart, onSessionEnd );
         
         // controller
         this.controller = this.renderer.xr.getController( 0 );
-        this.controller.addEventListener( 'selectstart', this.onSelectStart.bind(this) );
-        this.controller.addEventListener( 'selectend', this.onSelectEnd.bind(this) );
-        this.controller.addEventListener( 'disconnected', this.controllerDisconnected.bind(this) );
+        this.controller.addEventListener( 'selectstart', onSelectStart );
+        //this.controller.addEventListener( 'disconnected', onDisconnected );
         this.dolly.add( this.controller );
 
         const controllerModelFactory = new XRControllerModelFactory();
@@ -295,9 +365,8 @@ border: width color style
         
         // controller
         this.controller1 = this.renderer.xr.getController( 1 );
-        this.controller1.addEventListener( 'selectstart', this.onSelectStart.bind(this) );
-        this.controller1.addEventListener( 'selectend', this.onSelectEnd.bind(this) );
-        this.controller1.addEventListener( 'disconnected', this.controllerDisconnected.bind(this) );
+        this.controller1.addEventListener( 'selectstart', onSelectStart );
+        //this.controller.addEventListener( 'disconnected', onDisconnected );
         this.dolly.add( this.controller1 );
 
         this.controllerGrip1 = this.renderer.xr.getControllerGrip( 1 );
@@ -317,22 +386,6 @@ border: width color style
         this.selectPressed = false;
         
         this.renderer.setAnimationLoop( this.render.bind(this) );
-    }
-    
-    controllerDisconnected(){
-        this.controller.remove( this.controller.children[0] );
-        this.controller = null;
-        this.controllerGrip = null;
-    }
-    
-    onSelectStart( event ) {
-        
-        this.gui.select( );
-        
-    }
-
-    onSelectEnd( event ) {
-        
     }
     
     handleController( controller ){
@@ -358,7 +411,6 @@ border: width color style
         if ( this.mixer !== undefined ) this.mixer.update(dt);
         if (this.renderer.xr.isPresenting){
             this.handleController( this.controller );
-            //this.handleController( this.controller1 );
         }
         this.stats.update();
 		this.renderer.render(this.scene, this.camera);

@@ -6,8 +6,10 @@
 
 class VRButton{
 
-	constructor( renderer ) {
+	constructor( renderer, onSessionStart, onSessionEnd ) {
         this.renderer = renderer;
+        this.onSessionStart = onSessionStart;
+        this.onSessionEnd = onSessionEnd;
         
         if ( 'xr' in navigator ) {
 
@@ -70,6 +72,8 @@ class VRButton{
             button.textContent = 'EXIT VR';
 
             currentSession = session;
+            
+            if (self.onSessionStart !== undefined) self.onSessionStart();
 
         }
 
@@ -81,6 +85,8 @@ class VRButton{
             button.textContent = 'ENTER VR';
 
             currentSession = null;
+            
+            if (self.onSessionEnd !== undefined) self.onSessionEnd();
 
         }
 
