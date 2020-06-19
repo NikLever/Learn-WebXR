@@ -81,8 +81,8 @@ class App{
         this.helper = new CannonHelper( this.scene, this.world );
 		
         const groundShape = new CANNON.Plane();
-        const groundMaterial = new CANNON.Material();
-        const groundBody = new CANNON.Body({ mass: 0, material: groundMaterial });
+        //const groundMaterial = new CANNON.Material();
+        const groundBody = new CANNON.Body({ mass: 0 });//, material: groundMaterial });
         groundBody.quaternion.setFromAxisAngle( new CANNON.Vec3(1,0,0), -Math.PI/2);
         groundBody.addShape(groundShape);
         this.world.add(groundBody);
@@ -117,6 +117,19 @@ class App{
         this.helper.addVisual(body);
 
         return body;
+    }
+    
+    addConstraint(pos, body){
+        const pivot = pos.clone();
+        body.threemesh.worldToLocal(pivot);
+        
+        this.jointBody.position.copy(pos);
+ 
+        const constraint = new CANNON.PointToPointConstraint(body, pivot, this.jointBody, new CANNON.Vec3(0,0,0));
+
+        this.world.addConstraint(constraint);
+        
+        this.controller.userData.constraint = constraint;
     }
     
     setupVR(){
@@ -172,20 +185,6 @@ class App{
         this.controllerGrip = this.renderer.xr.getControllerGrip( 0 );
         this.controllerGrip.add( controllerModelFactory.createControllerModel( this.controllerGrip ) );
         this.scene.add( this.controllerGrip );
-    }
-    
-
-    addConstraint(pos, body){
-        const pivot = pos.clone();
-        body.threemesh.worldToLocal(pivot);
-        
-        this.jointBody.position.copy(pos);
- 
-        const constraint = new CANNON.PointToPointConstraint(body, pivot, this.jointBody, new CANNON.Vec3(0,0,0));
-
-        this.world.addConstraint(constraint);
-        
-        this.controller.userData.constraint = constraint;
     }
     
     buildController( data ) {

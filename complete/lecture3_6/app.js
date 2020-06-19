@@ -192,11 +192,12 @@ class App{
             const info = {};
             
             fetchProfile( event.data, DEFAULT_PROFILES_PATH, DEFAULT_PROFILE ).then( ( { profile, assetPath } ) => {
+                console.log( JSON.stringify(profile));
+                
                 info.name = profile.profileId;
                 info.targetRayMode = event.data.targetRayMode;
 
-                Object.entries( profile.layouts ).forEach( ( [key, value] ) => {
-                    const layout = value;
+                Object.entries( profile.layouts ).forEach( ( [key, layout] ) => {
                     const components = {};
                     Object.values( layout.components ).forEach( ( component ) => {
                         components[component.type] = component.gamepadIndices;
