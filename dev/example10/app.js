@@ -24,6 +24,7 @@ class App{
 		this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true } );
 		this.renderer.setPixelRatio( window.devicePixelRatio );
 		this.renderer.setSize( window.innerWidth, window.innerHeight );
+        this.renderer.outputEncoding = THREE.sRGBEncoding;
 		this.renderer.xr.enabled = true;
 		container.appendChild( this.renderer.domElement );
 		
@@ -71,13 +72,18 @@ class App{
 		// Load a glTF resource
 		loader.load(
 			// resource URL
-			'chair.glb',
+			'office-chair.glb',
 			// called when the resource is loaded
 			function ( gltf ) {
 
 				self.scene.add( gltf.scene );
                 self.chair = gltf.scene;
-                const scale = 0.2;
+                gltf.scene.traverse( (child) => {
+                    if (child.isMesh){
+                        child.material.metalness = 0.5;
+                    }
+                })
+                const scale = 0.1;
                 self.chair.scale.set( scale, scale, scale );
                 self.chair.visible = false;
                 
