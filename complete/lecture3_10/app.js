@@ -64,13 +64,13 @@ class App{
     createGUI() {
         
         const css = {
-            panelSize: { width: 0.8, height: 0.3 },
+            panelSize: { width: 0.6, height: 0.3 },
             width: 512,
             height: 256,
             opacity: 0.7,
             body:{
                 fontFamily:'Arial', 
-                fontSize:30, 
+                fontSize:20, 
                 padding:20, 
                 backgroundColor: '#000', 
                 fontColor:'#fff', 
@@ -84,7 +84,8 @@ class App{
             },
             msg:{
                 type: "text",
-                position:{ x:128, y:0 },
+                position:{ x:0, y:128 },
+                fontSize: 30,
                 height: 128
             }
         }
@@ -131,23 +132,21 @@ class App{
         }
         
         function onSessionStart(){
-            self.gui.mesh.position.set( 0, -0.5, -1 );
+            self.gui.mesh.position.set( 0, -0.5, -1.1 );
             self.camera.add( self.gui.mesh );
         }
         
         function onSessionEnd(){
             self.camera.remove( self.gui.mesh );
         }
-        
-        function onSelect() {
-            this.debug = !this.debug;
-        }
 
         const btn = new ARButton( this.renderer, onSessionStart, onSessionEnd );
         
         controller = this.renderer.xr.getController( 0 );
-        controller.addEventListener( 'select', onSelect );
         controller.addEventListener( 'connected', onConnected );
+        
+        this.dummyController = new THREE.Object3D();
+        controller.add( this.dummyController );
         
         this.scene.add( controller );
         this.controller = controller;
@@ -166,8 +165,8 @@ class App{
         this.stats.update();
         this.gui.update();
         if (this.renderer.xr.isPresenting){
-            const pos = this.dummyCam.getWorldPosition( this.origin );
-            this.euler.setFromQuaternion( this.dummyCam.getWorldQuaternion() );
+            const pos = this.controller.getWorldPosition( this.origin );
+            this.euler.setFromQuaternion( this.controller.getWorldQuaternion( this.quaternion ) );
             const rot = this.euler;
             const msg = `position:${pos.x.toFixed(2)},${pos.y.toFixed(2)},${pos.z.toFixed(2)} rotation:${rot.x.toFixed(2)},${rot.y.toFixed(2)},${rot.z.toFixed(2)}`
             this.gui.updateElement("msg", msg);

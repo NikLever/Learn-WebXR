@@ -17,6 +17,8 @@ class App{
 		this.camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 0.01, 20 );
 		
 		this.scene = new THREE.Scene();
+        
+        this.scene.add(this.camera);
        
 		this.scene.add( new THREE.HemisphereLight( 0x606060, 0x404040 ) );
 
@@ -37,7 +39,9 @@ class App{
         
         this.stats = new Stats();
         
-        this.debug = false;
+        this.origin = new THREE.Vector3();
+        this.euler = new THREE.Euler();
+        this.quaternion = new THREE.Quaternion();
         
         this.initScene();
         this.setupVR();
@@ -102,31 +106,12 @@ class App{
         
         this.createGUI();
         
-        const gestures = new Hammer(this.renderer.domElement);
-        gestures.get('pinch').set({ enable: true });
-        gestures.get('rotate').set({ enable: true });
-        gestures.on('pan', function(ev) {
-            console.log(ev);
-            self.gui.updateElement( "info", 'pan:'+ev );
-        });
-        gestures.on('swipe', function(ev) {
-            console.log(ev);
-            self.gui.updateElement( "info", 'swipe'+ev );
-        });
-        gestures.on('pinch', function(ev) {
-            console.log(ev);
-            self.gui.updateElement( "info", 'pinch:'+ev );
-        });
-        gestures.on('rotate', function(ev) {
-            console.log(ev);
-            self.gui.updateElement( "info", 'rotate:'+ev );
-        });
     }
     
     createGUI() {
         
         const css = {
-            panelSize: { width: 0.8, height: 0.3 },
+            panelSize: { width: 0.6, height: 0.3 },
             width: 512,
             height: 256,
             opacity: 0.7,
@@ -139,13 +124,20 @@ class App{
                 borderRadius: 6,
                 opacity: 0.7
             },
-            info:{
+            info0:{
                 type: "text",
-                position:{ x:0, y:0 }
+                position:{ x:0, y:0 },
+                height: 128
+            },
+            info1:{
+                type: "text",
+                position:{ x:0, y:128 },
+                height: 128
             }
         }
         const content = {
-            info: "Debug info",
+            info0: "Debug info controller 0",
+            info1: "Debug info controller 1"
         }
         
         const gui = new CanvasGUI( content, css );
@@ -158,36 +150,62 @@ class App{
         this.renderer.xr.enabled = true; 
         
         const self = this;
-        let controller;
+        let controller, controller1;
         
         function onSessionStart(){
-            self.gui.mesh.position.set( 0, 0, - 1 ).applyMatrix4( controller.matrixWorld );
-            self.gui.mesh.quaternion.setFromRotationMatrix( controller.matrixWorld );
-            self.scene.add( self.gui.mesh );
+            self.gui.mesh.position.set( 0, -0.2, -1.1 );
+            self.camera.add( self.gui.mesh );
         }
         
         function onSessionEnd(){
-            self.scene.remove( self.gui.mesh );
+            self.camera.remove( self.gui.mesh );
         }
         
         function onSelect() {
             if (!self.knight.object.visible){
                 self.knight.object.visible = true;
-                self.knight.object.position.set( 0, 0, - 1 ).applyMatrix4( controller.matrixWorld );
+                self.knight.object.position.set( 0, -0.5, -1.2 ).applyMatrix4( controller.matrixWorld );
                 self.knight.object.quaternion.setFromRotationMatrix( controller.matrixWorld );
-                self.scene.add( self.knight.object );
+                self.scene.add( self.knight.object ); 
             }
-            this.debug = !this.debug;
         }
 
+        function onSelectStart( event ){
+            const pos = this.getWorldPosition( self.origin );
+            this.userData.selectPressed = true;
+            this.userData.startPosition = pos;
+        }
+        
+        function onSelectEnd( event ){
+            this.userData.selectPressed = false; 
+        }
+        
         const btn = new ARButton( this.renderer, onSessionStart, onSessionEnd );
         
         controller = this.renderer.xr.getController( 0 );
         controller.addEventListener( 'select', onSelect );
+        controller.addEventListener( 'selectstart', onSelectStart );
+        controller.addEventListener( 'selectend', onSelectEnd );
+        controller.userData.index = 0;
         this.scene.add( controller );
         this.controller = controller;
         
+        controller1 = this.renderer.xr.getController( 1 );
+        controller1.addEventListener( 'selectstart', onSelectStart );
+        controller1.addEventListener( 'selectend', onSelectEnd );
+        controller1.userData.index = 1;
+        this.scene.add( controller1 );
+        this.controller1 = controller1;
+        
         this.renderer.setAnimationLoop( this.render.bind(this) );
+    }
+    
+    handleController( controller ){
+        if (controller.userData.selectPressed){
+            const pos = controller.getWorldPosition( this.origin );
+            const msg = `position:${pos.x.toFixed(2)},${pos.y.toFixed(2)},${pos.z.toFixed(2)}`;
+            this.gui.updateElement( `info${controller.userData.index}`, msg ); 
+        }
     }
     
     resize(){
@@ -199,14 +217,10 @@ class App{
 	render( ) {   
         const dt = this.clock.getDelta();
         this.stats.update();
-        this.gui.update();
-        if (this.renderer.xr.isPresenting && this.debug){
-            const pos = this.controller.position;
-            const rot = this.controller.rotation;
-            const infoStr = `position:${pos.x.toFixed(2)},${pos.y.toFixed(2)},${pos.z.toFixed(2)} rotation:${rot.x.toFixed(2)},${rot.y.toFixed(2)},${rot.z.toFixed(2)}`
-            this.gui.updateElement("info", infoStr);
-            this.gui.mesh.position.set( 0, 0, - 1 ).applyMatrix4( this.controller.matrixWorld );
-            this.gui.mesh.quaternion.setFromRotationMatrix( this.controller.matrixWorld );
+        if ( this.renderer.xr.isPresenting ){
+            this.handleController( this.controller );
+            this.handleController( this.controller1 );
+            this.gui.update();
         }
         if ( this.knight !== undefined ) this.knight.update(dt);
         this.renderer.render( this.scene, this.camera );

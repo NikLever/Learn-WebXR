@@ -58,7 +58,7 @@ class CanvasGUI{
 	
     setClip( elm ){
         const pos = (elm.position!==undefined) ? elm.position : { x:0, y: 0 };
-        const borderRadius = elm.borderRadius | this.css.borderRadius | 0;
+        const borderRadius = elm.borderRadius | 0;
         const width = elm.width | this.css.width;
         const height = elm.height | this.css.height;
         const context = this.context;
@@ -275,7 +275,7 @@ class CanvasGUI{
 	}
 	
 	wrapText(name, txt){
-        console.log( `wrapText: ${name}:${txt}`);
+        //console.log( `wrapText: ${name}:${txt}`);
 		const words = txt.split(' ');
         let line = '';
 		const lines = [];
@@ -300,23 +300,23 @@ class CanvasGUI{
         words.forEach( function(word){
 			let testLine = `${line}${word} `;
         	let metrics = context.measureText(testLine);
-        	let testWidth = metrics.width;
-			if (testWidth > rect.width) {
-                metrics = context.measureText(line);
-                if (metrics.width > rect.width){
-                    //Line too long, try splitting by comma
-                    const words2 = line.split(',');
-                    line = '';
-                    words2.forEach( (word) =>{
-                        testLine = `${line}${word} `;
-                        metrics = context.measureText(testLine);
-                        if (metrics.width > rect.width){
-                            lines.push(line);
-                            line = `${word} `; 
-                        }else{
-                            line = testLine;
-                        }
-                    })
+        	if (metrics.width > rect.width) {
+                if (line.length==0 && metrics.width > rect.width){
+                    //word too long
+                    while(metrics.width > rect.width){
+                        let count = 0;
+                        do{
+                            count++
+                            testLine = word.substr(0, count);
+                            metrics = context.measureText(testLine);
+                        }while(metrics.width < rect.width && count < (word.length-1));
+                        count--;
+                        testLine = word.substr(0, count);
+                        lines.push( testLine );
+                        word = word.substr(count);
+                        metrics = context.measureText(word);
+                    }
+                    if (word != "") lines.push(word);
                 }else{
 				    lines.push(line);
 				    line = `${word} `;
@@ -344,7 +344,7 @@ class CanvasGUI{
         }
         
 		lines.forEach( (line) => {
-			context.fillText(line, x, y);
+            context.fillText(line, x, y);
 			y += lineHeight;
 		});
 	}
