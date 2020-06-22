@@ -298,12 +298,29 @@ class CanvasGUI{
 		context.font = `${fontSize}px ${fontFamily}`;
 		
         words.forEach( function(word){
-			const testLine = `${line}${word} `;
-        	const metrics = context.measureText(testLine);
-        	const testWidth = metrics.width;
+			let testLine = `${line}${word} `;
+        	let metrics = context.measureText(testLine);
+        	let testWidth = metrics.width;
 			if (testWidth > rect.width) {
-				lines.push(line);
-				line = `${word} `;
+                metrics = context.measureText(line);
+                if (metrics.width > rect.width){
+                    //Line too long, try splitting by comma
+                    const words2 = line.split(',');
+                    line = '';
+                    words2.forEach( (word) =>{
+                        testLine = `${line}${word} `;
+                        metrics = context.measureText(testLine);
+                        if (metrics.width > rect.width){
+                            lines.push(line);
+                            line = `${word} `; 
+                        }else{
+                            line = testLine;
+                        }
+                    })
+                }else{
+				    lines.push(line);
+				    line = `${word} `;
+                }
 			}else {
 				line = testLine;
 			}
