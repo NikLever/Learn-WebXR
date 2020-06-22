@@ -15,16 +15,17 @@ class App{
 		this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color( 0xaaaaaa );
 
-		const ambient = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 0.3);
+		const ambient = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 0.5);
 		this.scene.add(ambient);
         
-        const light = new THREE.DirectionalLight();
+        const light = new THREE.DirectionalLight( 0xFFFFFF, 1.5 );
         light.position.set( 0.2, 1, 1);
         this.scene.add(light);
 			
 		this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true } );
 		this.renderer.setPixelRatio( window.devicePixelRatio );
 		this.renderer.setSize( window.innerWidth, window.innerHeight );
+        this.renderer.outputEncoding = THREE.sRGBEncoding;
 		container.appendChild( this.renderer.domElement );
 		
         this.loadingBar = new LoadingBar();
@@ -52,6 +53,11 @@ class App{
                 const bbox = new THREE.Box3().setFromObject( gltf.scene );
                 console.log(`min:${bbox.min.x.toFixed(2)},${bbox.min.y.toFixed(2)},${bbox.min.z.toFixed(2)} -  max:${bbox.max.x.toFixed(2)},${bbox.max.y.toFixed(2)},${bbox.max.z.toFixed(2)}`);
                 
+                gltf.scene.traverse( ( child ) => {
+                    if (child.isMesh){
+                        child.material.metalness = 0.2;
+                    }
+                })
                 self.chair = gltf.scene;
                 
 				self.scene.add( gltf.scene );
