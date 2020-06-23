@@ -198,22 +198,28 @@ class App{
         
         this.gestures = new ControllerGestures( this.renderer );
         this.gestures.addEventListener( 'tap', ()=>{
-            console.log( 'tap' );    
+            console.log( 'tap' ); 
+            self.gui.updateElement('info1', 'tap' );
         });
         this.gestures.addEventListener( 'doubletap', ()=>{
-            console.log( 'doubletap');    
+            console.log( 'doubletap'); 
+            self.gui.updateElement('info1', 'doubletap' );
         });
         this.gestures.addEventListener( 'press', ()=>{
             console.log( 'press' );    
+            self.gui.updateElement('info1', 'press' );
         });
         this.gestures.addEventListener( 'swipe', (ev)=>{
-            console.log( ev );    
+            console.log( ev );   
+            self.gui.updateElement('info1', `swipe ${ev.direction}` );
         });
         this.gestures.addEventListener( 'pinch', (ev)=>{
-            console.log( ev );    
+            console.log( ev );  
+            self.gui.updateElement('info1', `pinch ${ev.delta}` );
         });
         this.gestures.addEventListener( 'rotate', (ev)=>{
-            console.log( ev );    
+            console.log( ev ); 
+            self.gui.updateElement('info1', `rotate ${ev.theta}` );
         });
         
         this.renderer.setAnimationLoop( this.render.bind(this) );
@@ -223,7 +229,7 @@ class App{
         if (controller.userData.selectPressed){
             const pos = controller.getWorldPosition( this.origin );
             controller.userData.position = pos;
-            controller.userData.msg = `c${controller.userData.index} pos:${pos.x.toFixed(2)},${pos.y.toFixed(2)},${pos.z.toFixed(2)}`;
+            controller.userData.msg = `c${controller.userData.index} pos:${pos.x.toFixed(3)},${pos.y.toFixed(3)},${pos.z.toFixed(3)}`;
         }
     }
     
@@ -240,10 +246,9 @@ class App{
             this.handleController( this.controller );
             this.handleController( this.controller1 );
             if (this.controller.userData.selectPressed || this.controller1.userData.selectPressed){
-                this.gui.updateElement( 'info0', this.controller.userData.msg + " " + this.controller1.userData.msg );
-                this.gestures.update();
-                this.gui.updateElement( 'info1', this.gestures.debugMsg );
+                this.gui.updateElement( 'info0', this.controller.userData.msg + " " + this.controller1.userData.msg );   
             }
+            this.gestures.update();
             this.gui.update();
         }
         if ( this.knight !== undefined ) this.knight.update(dt);
