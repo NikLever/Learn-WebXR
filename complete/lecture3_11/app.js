@@ -105,7 +105,6 @@ class App{
 		);
         
         this.createGUI();
-        
     }
     
     createGUI() {
@@ -136,8 +135,8 @@ class App{
             }
         }
         const content = {
-            info0: "Debug info controller 0",
-            info1: "Debug info controller 1"
+            info0: "Debug info controllers",
+            info1: "Debug info"
         }
         
         const gui = new CanvasGUI( content, css );
@@ -153,7 +152,7 @@ class App{
         let controller, controller1;
         
         function onSessionStart(){
-            self.gui.mesh.position.set( 0, -0.2, -1.1 );
+            self.gui.mesh.position.set( 0, -0.3, -1.1 );
             self.camera.add( self.gui.mesh );
         }
         
@@ -164,7 +163,7 @@ class App{
         function onSelect() {
             if (!self.knight.object.visible){
                 self.knight.object.visible = true;
-                self.knight.object.position.set( 0, -0.5, -1.2 ).applyMatrix4( controller.matrixWorld );
+                self.knight.object.position.set( 0, -0.2, -1.2 ).applyMatrix4( controller.matrixWorld );
                 self.knight.object.quaternion.setFromRotationMatrix( controller.matrixWorld );
                 self.scene.add( self.knight.object ); 
             }
@@ -178,6 +177,12 @@ class App{
         
         function onSelectEnd( event ){
             this.userData.selectPressed = false; 
+            if (self.gestures !== undefined){
+                if (self.gestures.type==="pinch" || self.gestures.type==="rotate"){
+                    self.gestures = undefined;
+                }else{
+                    
+                }
         }
         
         const btn = new ARButton( this.renderer, onSessionStart, onSessionEnd );
@@ -203,8 +208,8 @@ class App{
     handleController( controller ){
         if (controller.userData.selectPressed){
             const pos = controller.getWorldPosition( this.origin );
-            const msg = `position:${pos.x.toFixed(2)},${pos.y.toFixed(2)},${pos.z.toFixed(2)}`;
-            this.gui.updateElement( `info${controller.userData.index}`, msg ); 
+            controller.userData.position = pos;
+            controller.userData.msg = `c${controller.userData.index} pos:${pos.x.toFixed(2)},${pos.y.toFixed(2)},${pos.z.toFixed(2)}`;
         }
     }
     
@@ -220,6 +225,15 @@ class App{
         if ( this.renderer.xr.isPresenting ){
             this.handleController( this.controller );
             this.handleController( this.controller1 );
+            if (this.controller.userData.selectPressed || this.controller1.userData.selectPressed){
+                this.gui.updateElement( 'info0', this.controller.userData.msg + " " + this.controller1.userData.msg );
+                if (this.gestures)
+                if (this.controller.userData.selectPressed && this.controller1.userData.selectPressed){
+                    
+                }else{
+                    
+                }
+            }
             this.gui.update();
         }
         if ( this.knight !== undefined ) this.knight.update(dt);
