@@ -6,6 +6,7 @@ import { CanvasGUI } from '../../libs/CanvasGUI.js'
 import { ARButton } from '../../libs/ARButton.js';
 import { LoadingBar } from '../../libs/LoadingBar.js';
 import { Player } from '../../libs/Player.js';
+import { ControllerGestures } from '../../libs/ControllerGestures.js';
 
 class App{
 	constructor(){
@@ -172,17 +173,10 @@ class App{
         function onSelectStart( event ){
             const pos = this.getWorldPosition( self.origin );
             this.userData.selectPressed = true;
-            this.userData.startPosition = pos;
         }
         
         function onSelectEnd( event ){
             this.userData.selectPressed = false; 
-            if (self.gestures !== undefined){
-                if (self.gestures.type==="pinch" || self.gestures.type==="rotate"){
-                    self.gestures = undefined;
-                }else{
-                    
-                }
         }
         
         const btn = new ARButton( this.renderer, onSessionStart, onSessionEnd );
@@ -201,6 +195,26 @@ class App{
         controller1.userData.index = 1;
         this.scene.add( controller1 );
         this.controller1 = controller1;
+        
+        this.gestures = new ControllerGestures( this.renderer );
+        this.gestures.addEventListener( 'tap', ()=>{
+            console.log( 'tap' );    
+        });
+        this.gestures.addEventListener( 'doubletap', ()=>{
+            console.log( 'doubletap');    
+        });
+        this.gestures.addEventListener( 'press', ()=>{
+            console.log( 'press' );    
+        });
+        this.gestures.addEventListener( 'swipe', (ev)=>{
+            console.log( ev );    
+        });
+        this.gestures.addEventListener( 'pinch', (ev)=>{
+            console.log( ev );    
+        });
+        this.gestures.addEventListener( 'rotate', (ev)=>{
+            console.log( ev );    
+        });
         
         this.renderer.setAnimationLoop( this.render.bind(this) );
     }
@@ -227,12 +241,8 @@ class App{
             this.handleController( this.controller1 );
             if (this.controller.userData.selectPressed || this.controller1.userData.selectPressed){
                 this.gui.updateElement( 'info0', this.controller.userData.msg + " " + this.controller1.userData.msg );
-                if (this.gestures)
-                if (this.controller.userData.selectPressed && this.controller1.userData.selectPressed){
-                    
-                }else{
-                    
-                }
+                this.gestures.update();
+                this.gui.updateElement( 'info1', this.gestures.debugMsg );
             }
             this.gui.update();
         }
