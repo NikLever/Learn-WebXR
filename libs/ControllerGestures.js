@@ -64,10 +64,13 @@ class ControllerGestures extends THREE.EventDispatcher{
                 const direction = (this.controller1.position.y > data.startPosition.y) ? 'UP' : 'DOWN';
                 this.dispatchEvent( 'swipe', { direction }) );
             }
+            data.selectPressed = false;
         }
     }
     
     update(){
-        
+        const data1 = this.controller1.userData.gestures;
+        const data2 = this.controller2.userData.gestures;
+        if 
     }
 }
