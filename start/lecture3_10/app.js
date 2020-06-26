@@ -107,7 +107,7 @@ class App{
         let controller;
         
         function onConnected( event ) {
-            if (this.info === undefined){
+            if (self.info === undefined){
                 const info = {};
 
                 fetchProfile( event.data, DEFAULT_PROFILES_PATH, DEFAULT_PROFILE ).then( ( { profile, assetPath } ) => {
@@ -124,7 +124,7 @@ class App{
                         info[key] = components;
                     });
 
-                    this.info = info;
+                    self.info = info;
                     self.gui.updateElement( "info", JSON.stringify(info) );
 
                 } );
@@ -132,24 +132,12 @@ class App{
         }
         
         function onSessionStart(){
-            self.gui.mesh.position.set( 0, -0.5, -1.1 );
-            self.camera.add( self.gui.mesh );
+            
         }
         
         function onSessionEnd(){
-            self.camera.remove( self.gui.mesh );
-        }
 
-        const btn = new ARButton( this.renderer, onSessionStart, onSessionEnd );
-        
-        controller = this.renderer.xr.getController( 0 );
-        controller.addEventListener( 'connected', onConnected );
-        
-        this.dummyController = new THREE.Object3D();
-        controller.add( this.dummyController );
-        
-        this.scene.add( controller );
-        this.controller = controller;
+        }
         
         this.renderer.setAnimationLoop( this.render.bind(this) );
     }
@@ -160,16 +148,17 @@ class App{
         this.renderer.setSize( window.innerWidth, window.innerHeight );  
     }
     
+    createMsg( pos, rot ){
+        const msg = `position:${pos.x.toFixed(2)},${pos.y.toFixed(2)},${pos.z.toFixed(2)} rotation:${rot.x.toFixed(2)},${rot.y.toFixed(2)},${rot.z.toFixed(2)}`;
+        return msg;
+    }
+    
 	render( ) {   
         const dt = this.clock.getDelta();
         this.stats.update();
         this.gui.update();
         if (this.renderer.xr.isPresenting){
-            const pos = this.controller.getWorldPosition( this.origin );
-            this.euler.setFromQuaternion( this.controller.getWorldQuaternion( this.quaternion ) );
-            const rot = this.euler;
-            const msg = `position:${pos.x.toFixed(2)},${pos.y.toFixed(2)},${pos.z.toFixed(2)} rotation:${rot.x.toFixed(2)},${rot.y.toFixed(2)},${rot.z.toFixed(2)}`
-            this.gui.updateElement("msg", msg);
+            
         }
         this.renderer.render( this.scene, this.camera );
     }

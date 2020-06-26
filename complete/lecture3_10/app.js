@@ -104,10 +104,9 @@ class App{
         this.renderer.xr.enabled = true; 
         
         const self = this;
-        let controller;
         
         function onConnected( event ) {
-            if (this.info === undefined){
+            if (self.info === undefined){
                 const info = {};
 
                 fetchProfile( event.data, DEFAULT_PROFILES_PATH, DEFAULT_PROFILE ).then( ( { profile, assetPath } ) => {
@@ -124,7 +123,7 @@ class App{
                         info[key] = components;
                     });
 
-                    this.info = info;
+                    self.info = info;
                     self.gui.updateElement( "info", JSON.stringify(info) );
 
                 } );
@@ -142,11 +141,8 @@ class App{
 
         const btn = new ARButton( this.renderer, onSessionStart, onSessionEnd );
         
-        controller = this.renderer.xr.getController( 0 );
+        const controller = this.renderer.xr.getController( 0 );
         controller.addEventListener( 'connected', onConnected );
-        
-        this.dummyController = new THREE.Object3D();
-        controller.add( this.dummyController );
         
         this.scene.add( controller );
         this.controller = controller;
@@ -160,6 +156,11 @@ class App{
         this.renderer.setSize( window.innerWidth, window.innerHeight );  
     }
     
+    createMsg( pos, rot ){
+        const msg = `position:${pos.x.toFixed(3)},${pos.y.toFixed(3)},${pos.z.toFixed(3)} rotation:${rot.x.toFixed(2)},${rot.y.toFixed(2)},${rot.z.toFixed(2)}`;
+        return msg;
+    }
+    
 	render( ) {   
         const dt = this.clock.getDelta();
         this.stats.update();
@@ -168,7 +169,7 @@ class App{
             const pos = this.controller.getWorldPosition( this.origin );
             this.euler.setFromQuaternion( this.controller.getWorldQuaternion( this.quaternion ) );
             const rot = this.euler;
-            const msg = `position:${pos.x.toFixed(2)},${pos.y.toFixed(2)},${pos.z.toFixed(2)} rotation:${rot.x.toFixed(2)},${rot.y.toFixed(2)},${rot.z.toFixed(2)}`
+            const msg = this.createMsg( pos, rot );
             this.gui.updateElement("msg", msg);
         }
         this.renderer.render( this.scene, this.camera );

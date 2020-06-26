@@ -60,7 +60,6 @@ class App{
 
         }
 
-        //document.body.appendChild( ARButton.createButton( this.renderer ) );
         const btn = new ARButton( this.renderer );
         
         controller = this.renderer.xr.getController( 0 );
