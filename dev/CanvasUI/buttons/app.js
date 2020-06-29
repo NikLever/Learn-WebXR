@@ -46,8 +46,17 @@ class App{
     }
     
     createUI() {
+        const css = {
+            panelSize: { width: 1, height: 0.25 },
+            width: 256,
+            height: 64
+            left: { type: "button", width: 400, height: 250 }
+        }
+        const content = {
+            speech: "A custom shaped panel. How about that?"
+        }
+        this.ui = new CanvasUI( content, css );
         this.ui = new CanvasUI(  );
-        this.ui.updateElement("body", "Hello World" );
     }
     
     setupVR(){
@@ -56,12 +65,12 @@ class App{
         const self = this;
         
         function onSessionStart(){
-            self.ui.mesh.position.set( 0, 1.5, -1.2 );
-            self.camera.attach( self.ui.mesh );
+            self.ui.mesh.position.set( 0, 3, -1.2 );
+            self.scene.attach( self.ui.mesh );
         }
         
         function onSessionEnd(){
-            self.camera.remove( self.ui.mesh );
+            self.scene.remove( self.ui.mesh );
         }
         
         const btn = new VRButton( this.renderer, onSessionStart, onSessionEnd );
