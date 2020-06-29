@@ -5,7 +5,7 @@ import { LoadingBar } from '../../libs/LoadingBar.js';
 import { VRButton } from '../../libs/VRButton.js';
 import { XRControllerModelFactory } from '../../libs/three/jsm/XRControllerModelFactory.js';
 import { Stats } from '../../libs/stats.module.js';
-import { CanvasGUI } from '../../libs/CanvasGUI.js';
+import { CanvasUI } from '../../libs/CanvasUI.js';
 import Questions from './questions.js';
 
 class App{

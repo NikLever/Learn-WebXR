@@ -63,6 +63,8 @@ class CanvasUI{
             this.content = content;
         }
         
+        this.selectedElements = [ undefined, undefined ];
+        
         this.needsUpdate = true;
         
         this.update();
@@ -169,10 +171,10 @@ class CanvasUI{
         this.needsUpdate = true;
     }
 
-    hover( position ){
+    hover( index = 0, position ){
         if (position === undefined){
-            if (this.selectedElement !== undefined){
-                this.selectedElement = undefined;
+            if (this.selectedElements[index] !== undefined){
+                this.selectedElements[index] = undefined;
                 this.needsUpdate = true;
             }
         }else{
@@ -188,24 +190,24 @@ class CanvasUI{
             //console.log( `hover localPos:${localPos.x.toFixed(2)},${localPos.y.toFixed(2)}>>texturePos:${x.toFixed(0)}, ${y.toFixed(0)}`);
             const elm = this.getElementAtLocation( x, y );
             if (elm===null){
-                if ( this.selectedElement !== undefined ){
-                    this.selectedElement = undefined;
+                if ( this.selectedElements[index] !== undefined ){
+                    this.selectedElements[index] = undefined;
                     this.needsUpdate = true;
                 }
-            }else if( this.selectedElement !== elm ){
-                this.selectedElement = elm;
+            }else if( this.selectedElements[index] !== elm ){
+                this.selectedElements[index] = elm;
                 this.needsUpdate = true;
             }
         }
          
     }
     
-    select( ){
-        if (this.selectedElement !== undefined){
-            if (this.selectedElement.onSelect){
-                this.selectedElement.onSelect();
+    select( index = 0 ){
+        if (this.selectedElements[index] !== undefined){
+            if (this.selectedElements[index].onSelect){
+                this.selectedElements[index].onSelect();
             }
-            this.selectedElement = undefined;
+            this.selectedElements[index] = undefined;
         }
     }
     
@@ -243,42 +245,45 @@ class CanvasUI{
                 if (pos.x === undefined) pos.x = 0;
                 if (pos.y === undefined) pos.y = 0;
                 
+                if (css.type == "button" && !content.toLowerCase().startsWith("<path>")){
+                    if ( css.borderRadius === undefined) css.borderRadius = 6;
+                    if ( css.textAlign === undefined ) css.textAlign = "center";
+                }
+                
                 self.setClip( css );
                 
+                const svgPath = content.toLowerCase().startsWith("<path>");
+                const hover = ((self.selectedElements[0] !== undefined && this.selectedElements[0] === css)||(self.selectedElements[1] !== undefined && this.selectedElements[1] === css));
+                
                 if ( css.backgroundColor !== undefined){
-                    context.fillStyle = css.backgroundColor;
+                    if (hover && css.type== "button" && css.hover !== undefined){
+                        context.fillStyle = css.hover;
+                    }else{
+                        context.fillStyle = css.backgroundColor;
+                    }
                     context.fillRect( pos.x, pos.y, width, height );
                 }
 
                 if (css.type == "text" || css.type == "button"){
                     let stroke = false;
-                    if (self.selectedElement !== undefined && this.selectedElement === css){
-                        context.fillStyle = (css.hover !== undefined) ? css.hover : ( css.fontColor !== undefined) ? css.fontColor : fontColor;
+                    if (hover){
+                        if (!svgPath && css.type == "button"){
+                            context.fillStyle = (css.fontColor !== undefined) ? css.fontColor : fontColor;
+                        }else{
+                            context.fillStyle = (css.hover !== undefined) ? css.hover : ( css.fontColor !== undefined) ? css.fontColor : fontColor;
+                        }
                         stroke = (css.hover === undefined);
                     }else{
                         context.fillStyle = (css.fontColor !== undefined) ? css.fontColor : fontColor;
                     }
                     
-                    if (content.toLowerCase().startsWith("<path>")){
+                    if ( svgPath ){
                         const code = content.toUpperCase().substring(6, content.length - 7);
-                        const tokens = code.split(' ');
-                        context.beginPath();
-                        while(tokens.length>0){
-                            const token = tokens.shift();
-                            let cmd;
-                            switch(token){
-                                case 'M':
-                                    context.moveTo(Number(tokens.shift()) + pos.x, Number(tokens.shift()) + pos.y);
-                                    break;
-                                case 'L':
-                                    context.lineTo(Number(tokens.shift()) + pos.x, Number(tokens.shift()) + pos.y);
-                                    break;
-                                case 'Z':
-                                    context.closePath();
-                                    break
-                            }
-                        }
-                        context.fill();
+                        context.save();
+                        context.translate( pos.x, pos.y );
+                        const path = new Path2D(code);
+                        context.fill(path);
+                        context.restore();
                     }else{
                         self.wrapText( name, content )
                     }
@@ -290,6 +295,19 @@ class CanvasUI{
                         context.rect( pos.x, pos.y, width, height);
                         context.stroke();
                     }
+                }else if (css.type == "img"){
+                    if (css.img === undefined){
+                        this.loadImage(content).then(img =>{
+                            console.log(`w: ${img.width} | h: ${img.height}`);
+                            css.img = img;
+                            self.needsUpdate = true;
+                            self.update();           
+                        }).catch(err => console.error(err));
+                    }else{
+                        const aspect = css.img.width/css.img.height;
+                        const h = width/aspect;
+                        context.drawImage( css.img, pos.x, pos.y, width, h );           
+                    }
                 }
             }
         })
@@ -298,6 +316,15 @@ class CanvasUI{
 		this.texture.needsUpdate = true;
 	}
 	
+    loadImage(src) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.addEventListener("load", () => resolve(img));
+        img.addEventListener("error", err => reject(err));
+        img.src = src;
+      });
+    }
+
 	createOffscreenCanvas(w, h) {
 		const canvas = document.createElement('canvas');
 		canvas.width = w;

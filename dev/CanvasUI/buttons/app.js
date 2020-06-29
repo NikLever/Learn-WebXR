@@ -1,5 +1,6 @@
 import * as THREE from '../../../libs/three/three.module.js';
 import { BoxLineGeometry } from '../../../libs/three/jsm/BoxLineGeometry.js';
+import { XRControllerModelFactory } from '../../../libs/three/jsm/XRControllerModelFactory.js';
 import { CanvasUI } from '../../../libs/CanvasUI.js'
 import { VRButton } from '../../../libs/VRButton.js';
 
@@ -28,6 +29,9 @@ class App{
         
 		container.appendChild( this.renderer.domElement );
         
+        this.workingMatrix = new THREE.Matrix4();
+        this.raycaster = new THREE.Raycaster();
+        
         this.initScene();
         this.setupVR();
         
@@ -46,17 +50,49 @@ class App{
     }
     
     createUI() {
-        const css = {
-            panelSize: { width: 1, height: 0.25 },
-            width: 256,
-            height: 64
-            left: { type: "button", width: 400, height: 250 }
+        const self = this;
+        
+        function onPrev(){
+            const msg = "Prev pressed";
+            console.log(msg);
+            self.ui.updateElement( "info", msg );
+        }
+        
+        function onStop(){
+            const msg = "Stop pressed";
+            console.log(msg);
+            self.ui.updateElement( "info", msg );
+        }
+        
+        function onNext(){
+            const msg = "Next pressed";
+            console.log(msg);
+            self.ui.updateElement( "info", msg );
+        }
+        
+        function onContinue(){
+            const msg = "Continue pressed";
+            console.log(msg);
+            self.ui.updateElement( "info", msg );
+        }
+        
+        const config = {
+            panelSize: { width: 2, height: 0.5 },
+            height: 128,
+            info: { type: "text", position:{ left: 6, top: 6 }, width: 500, height: 58, backgroundColor: "#aaa", fontColor: "#000" },
+            prev: { type: "button", position:{ top: 64, left: 0 }, width: 64, fontColor: "#bb0", hover: "#ff0", onSelect: onPrev },
+            stop: { type: "button", position:{ top: 64, left: 64 }, width: 64, fontColor: "#bb0", hover: "#ff0", onSelect: onStop },
+            next: { type: "button", position:{ top: 64, left: 128 }, width: 64, fontColor: "#bb0", hover: "#ff0", onSelect: onNext },
+            continue: { type: "button", position:{ top: 70, right: 10 }, width: 200, height: 52, fontColor: "#fff", backgroundColor: "#1bf", hover: "#3df", onSelect: onContinue },
         }
         const content = {
-            speech: "A custom shaped panel. How about that?"
+            info: "",
+            prev: "<path>M 10 32 L 54 10 L 54 54 Z</path>",
+            stop: "<path>M 50 15 L 15 15 L 15 50 L 50 50 Z<path>",
+            next: "<path>M 54 32 L 10 10 L 10 54 Z</path>",
+            continue: "Continue"
         }
-        this.ui = new CanvasUI( content, css );
-        this.ui = new CanvasUI(  );
+        this.ui = new CanvasUI( content, config );
     }
     
     setupVR(){
@@ -65,8 +101,8 @@ class App{
         const self = this;
         
         function onSessionStart(){
-            self.ui.mesh.position.set( 0, 3, -1.2 );
-            self.scene.attach( self.ui.mesh );
+            self.ui.mesh.position.set( 0, 1, -3 );
+            self.scene.add( self.ui.mesh );
         }
         
         function onSessionEnd(){
@@ -75,7 +111,65 @@ class App{
         
         const btn = new VRButton( this.renderer, onSessionStart, onSessionEnd );
         
+        function onSelectStart( event ) {
+            
+            const index = (event.target === self.controller) ? 0 : 1
+            if ( self.ui!==undefined ) self.ui.select( index );
+
+        }
+
+        const button = new VRButton( this.renderer, onSessionStart, onSessionEnd );
+        
+        const controllerModelFactory = new XRControllerModelFactory();
+
+        // controller
+        this.controller = this.renderer.xr.getController( 0 );
+        this.controller.addEventListener( 'selectstart', onSelectStart );
+        this.scene.add( this.controller );
+                
+        this.controllerGrip = this.renderer.xr.getControllerGrip( 0 );
+        this.controllerGrip.add( controllerModelFactory.createControllerModel( this.controllerGrip ) );
+        this.scene.add( this.controllerGrip );
+        
+        // controller
+        this.controller1 = this.renderer.xr.getController( 1 );
+        this.controller1.addEventListener( 'selectstart', onSelectStart );
+        this.scene.add( this.controller1 );
+
+        this.controllerGrip1 = this.renderer.xr.getControllerGrip( 1 );
+        this.controllerGrip1.add( controllerModelFactory.createControllerModel( this.controllerGrip1 ) );
+        this.scene.add( this.controllerGrip1 );
+        
+        //
+        const geometry = new THREE.BufferGeometry().setFromPoints( [ new THREE.Vector3( 0, 0, 0 ), new THREE.Vector3( 0, 0, - 1 ) ] );
+
+        const line = new THREE.Line( geometry );
+        line.name = 'line';
+		line.scale.z = 0;
+
+        this.controller.add( line.clone() );
+        this.controller1.add( line.clone() );
+        
+        this.selectPressed = false;
+        
         this.renderer.setAnimationLoop( this.render.bind(this) );
+    }
+    
+    handleController( controller, index ){
+        this.workingMatrix.identity().extractRotation( controller.matrixWorld );
+
+        this.raycaster.ray.origin.setFromMatrixPosition( controller.matrixWorld );
+        this.raycaster.ray.direction.set( 0, 0, - 1 ).applyMatrix4( this.workingMatrix );
+
+        const intersects = this.raycaster.intersectObject( this.ui.mesh );
+
+        if (intersects.length>0){
+            this.ui.hover( index, intersects[0].point, index );
+            controller.children[0].scale.z = intersects[0].distance;
+        }else{
+            this.ui.hover( index );
+            controller.children[0].scale.z = 10;
+        }
     }
     
     resize(){
@@ -85,7 +179,11 @@ class App{
     }
     
 	render( ) {   
-        if ( this.renderer.xr.isPresenting ) this.ui.update();
+        if ( this.renderer.xr.isPresenting ){
+            this.handleController( this.controller, 0 );
+            this.handleController( this.controller1, 1 );
+            this.ui.update();
+        }
         this.renderer.render( this.scene, this.camera );
     }
 }

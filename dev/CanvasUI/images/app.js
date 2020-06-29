@@ -46,8 +46,15 @@ class App{
     }
     
     createUI() {
-        this.ui = new CanvasUI(  );
-        this.ui.updateElement("body", "Hello World" );
+        const config = {
+            image: { type: "img", position: { left: 20, top: 20 }, width: 472 },
+            info: { type: "text", position: { top: 300 } }
+        }
+        const content = {
+            image: "../../../assets/promo.jpg",
+            info: "The promo image from the course: Learn to create WebXR, VR and AR, experiences using Three.JS"
+        }
+        this.ui = new CanvasUI( content, config );
     }
     
     setupVR(){
