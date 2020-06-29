@@ -2,7 +2,7 @@ import * as THREE from '../../libs/three/three.module.js';
 import { OrbitControls } from '../../libs/three/jsm/OrbitControls.js';
 import { GLTFLoader } from '../../libs/three/jsm/GLTFLoader.js';
 import { Stats } from '../../libs/stats.module.js';
-import { CanvasGUI } from '../../libs/CanvasGUI.js'
+import { CanvasUI } from '../../libs/CanvasUI.js'
 import { ARButton } from '../../libs/ARButton.js';
 import { LoadingBar } from '../../libs/LoadingBar.js';
 import { Player } from '../../libs/Player.js';
@@ -15,7 +15,7 @@ class App{
         
         this.clock = new THREE.Clock();
         
-		this.camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 0.01, 20 );
+		this.camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 0.01, 20 );
 		
 		this.scene = new THREE.Scene();
         
@@ -86,7 +86,7 @@ class App{
                 self.knight.object.visible = false;
 				
 				self.knight.action = 'Dance';
-				const scale = 0.005;
+				const scale = 0.003;
 				self.knight.object.scale.set(scale, scale, scale); 
 				
                 self.loadingBar.visible = false;
@@ -111,9 +111,9 @@ class App{
     createGUI() {
         
         const css = {
-            panelSize: { width: 0.6, height: 0.3 },
+            panelSize: { width: 0.2, height: 0.05 },
             width: 512,
-            height: 256,
+            height: 128,
             opacity: 0.7,
             body:{
                 fontFamily:'Arial', 
@@ -124,23 +124,16 @@ class App{
                 borderRadius: 6,
                 opacity: 0.7
             },
-            info0:{
+            info:{
                 type: "text",
-                position:{ x:0, y:0 },
-                height: 128
-            },
-            info1:{
-                type: "text",
-                position:{ x:0, y:128 },
-                height: 128
+                position:{ x:0, y:0 }
             }
         }
         const content = {
-            info0: "Debug info controllers",
-            info1: "Debug info"
+            info: "Debug info"
         }
         
-        const gui = new CanvasGUI( content, css );
+        const gui = new CanvasUI( content, css );
         gui.mesh.material.opacity = 0.7;
         
         this.gui = gui;
@@ -153,7 +146,7 @@ class App{
         let controller, controller1;
         
         function onSessionStart(){
-            self.gui.mesh.position.set( 0, -0.3, -1.1 );
+            self.gui.mesh.position.set( 0, -0.2, -0.3 );
             self.camera.add( self.gui.mesh );
         }
         
@@ -161,76 +154,66 @@ class App{
             self.camera.remove( self.gui.mesh );
         }
         
-        function onSelect() {
-            if (!self.knight.object.visible){
-                self.knight.object.visible = true;
-                self.knight.object.position.set( 0, -0.2, -1.2 ).applyMatrix4( controller.matrixWorld );
-                self.knight.object.quaternion.setFromRotationMatrix( controller.matrixWorld );
-                self.scene.add( self.knight.object ); 
-            }
-        }
-
-        function onSelectStart( event ){
-            const pos = this.getWorldPosition( self.origin );
-            this.userData.selectPressed = true;
-        }
-        
-        function onSelectEnd( event ){
-            this.userData.selectPressed = false; 
-        }
-        
         const btn = new ARButton( this.renderer, onSessionStart, onSessionEnd );
         
-        controller = this.renderer.xr.getController( 0 );
-        controller.addEventListener( 'select', onSelect );
-        controller.addEventListener( 'selectstart', onSelectStart );
-        controller.addEventListener( 'selectend', onSelectEnd );
-        controller.userData.index = 0;
-        this.scene.add( controller );
-        this.controller = controller;
-        
-        controller1 = this.renderer.xr.getController( 1 );
-        controller1.addEventListener( 'selectstart', onSelectStart );
-        controller1.addEventListener( 'selectend', onSelectEnd );
-        controller1.userData.index = 1;
-        this.scene.add( controller1 );
-        this.controller1 = controller1;
-        
         this.gestures = new ControllerGestures( this.renderer );
-        this.gestures.addEventListener( 'tap', ()=>{
+        this.gestures.addEventListener( 'tap', (ev)=>{
             console.log( 'tap' ); 
-            self.gui.updateElement('info1', 'tap' );
+            self.gui.updateElement('info', 'tap' );
+            if (!self.knight.object.visible){
+                self.knight.object.visible = true;
+                self.knight.object.position.set( 0, -0.3, -0.5 ).add( ev.position );
+                self.scene.add( self.knight.object ); 
+            }
         });
-        this.gestures.addEventListener( 'doubletap', ()=>{
+        this.gestures.addEventListener( 'doubletap', (ev)=>{
             console.log( 'doubletap'); 
-            self.gui.updateElement('info1', 'doubletap' );
+            self.gui.updateElement('info', 'doubletap' );
         });
-        this.gestures.addEventListener( 'press', ()=>{
+        this.gestures.addEventListener( 'press', (ev)=>{
             console.log( 'press' );    
-            self.gui.updateElement('info1', 'press' );
+            self.gui.updateElement('info', 'press' );
+        });
+        this.gestures.addEventListener( 'pan', (ev)=>{
+            console.log( ev );
+            if (ev.initialise !== undefined){
+                self.startPosition = self.knight.object.position.clone();
+            }else{
+                const pos = self.startPosition.clone().add( ev.delta.multiplyScalar(3) );
+                self.knight.object.position.copy( pos );
+                self.gui.updateElement('info', `pan x:${ev.delta.x.toFixed(3)}, y:${ev.delta.y.toFixed(3)}, x:${ev.delta.z.toFixed(3)}` );
+            } 
         });
         this.gestures.addEventListener( 'swipe', (ev)=>{
             console.log( ev );   
-            self.gui.updateElement('info1', `swipe ${ev.direction}` );
+            self.gui.updateElement('info', `swipe ${ev.direction}` );
+            if (self.knight.object.visible){
+                self.knight.object.visible = false;
+                self.scene.remove( self.knight.object ); 
+            }
         });
         this.gestures.addEventListener( 'pinch', (ev)=>{
             console.log( ev );  
-            self.gui.updateElement('info1', `pinch ${ev.delta}` );
+            if (ev.initialise !== undefined){
+                self.startScale = self.knight.object.scale.clone();
+            }else{
+                const scale = self.startScale.clone().multiplyScalar(ev.scale);
+                self.knight.object.scale.copy( scale );
+                self.gui.updateElement('info', `pinch delta:${ev.delta.toFixed(3)} scale:${ev.scale.toFixed(2)}` );
+            }
         });
         this.gestures.addEventListener( 'rotate', (ev)=>{
             console.log( ev ); 
-            self.gui.updateElement('info1', `rotate ${ev.theta}` );
+            if (ev.initialise !== undefined){
+                self.startQuaternion = self.knight.object.quaternion.clone();
+            }else{
+                self.knight.object.quaternion.copy( self.startQuaternion );
+                self.knight.object.rotateY( ev.theta );
+                self.gui.updateElement('info', `rotate ${ev.theta.toFixed(3)}`  );
+            }
         });
         
         this.renderer.setAnimationLoop( this.render.bind(this) );
-    }
-    
-    handleController( controller ){
-        if (controller.userData.selectPressed){
-            const pos = controller.getWorldPosition( this.origin );
-            controller.userData.position = pos;
-            controller.userData.msg = `c${controller.userData.index} pos:${pos.x.toFixed(3)},${pos.y.toFixed(3)},${pos.z.toFixed(3)}`;
-        }
     }
     
     resize(){
@@ -243,11 +226,6 @@ class App{
         const dt = this.clock.getDelta();
         this.stats.update();
         if ( this.renderer.xr.isPresenting ){
-            this.handleController( this.controller );
-            this.handleController( this.controller1 );
-            if (this.controller.userData.selectPressed || this.controller1.userData.selectPressed){
-                this.gui.updateElement( 'info0', this.controller.userData.msg + " " + this.controller1.userData.msg );   
-            }
             this.gestures.update();
             this.gui.update();
         }

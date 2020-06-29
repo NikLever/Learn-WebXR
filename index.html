@@ -1,79 +1,138 @@
-<html>
-    <head>
-        <title>Niks WebXR examples</title>
-		<meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta property="og:title" content="Nik's WebXR Examples">
-        <meta property="og:description" content="Examples from my Udemy course, 'Learn to create WebXR VR and AR experiences using THREE.js'. Expected to be live August 2020">
-        <meta property="og:image" content="https://niksgames.com/webxr/assets/promo.jpg">
-        <meta property="og:url" content="https://niksgames.com/webxr/index.html">
-        <meta name="twitter:card" content="summary_large_image">
-    </head>
-    <body>
-        <p>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="description" content="">
+    <meta name="author" content="Nik Lever, Mark Otto, Jacob Thornton, and Bootstrap contributors">
+    <title>Nik's WebXR Stuff</title>
+
+    <!-- Bootstrap core CSS -->
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
+    <!-- Favicons -->
+      <link rel="apple-touch-icon" sizes="180x180" href="css/favicon/apple-touch-icon.png">
+      <link rel="icon" type="image/png" sizes="32x32" href="css/favicon/favicon-32x32.png">
+      <link rel="icon" type="image/png" sizes="16x16" href="css/favicon/favicon-16x16.png">
+      <link rel="manifest" href="css/favicon/site.webmanifest">
+      <link rel="mask-icon" href="css/favicon/safari-pinned-tab.svg" color="#5bbad5">
+      <meta name="msapplication-TileColor" content="#da532c">
+      <meta name="theme-color" content="#ffffff">
+      <!--<meta name="theme-color" content="#563d7c">-->
+
+
+    <style>
+      .bd-placeholder-img {
+        font-size: 1.125rem;
+        text-anchor: middle;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+      }
+
+      @media (min-width: 768px) {
+        .bd-placeholder-img-lg {
+          font-size: 3.5rem;
+        }
+      }
+    </style>
+    <!-- Custom styles for this template -->
+    <link href="css/webxr.css" rel="stylesheet">
+  </head>
+  <body class="text-center">
+      <script src="https://kit.fontawesome.com/86f3d02ba1.js" crossorigin="anonymous"></script>
+<header class="masthead mb-auto">
+    <div class="inner">
+      <h3 class="masthead-brand"><img src="css/favicon/favicon-32x32.png" />Nik's WebXR Stuff</h3>
+      <nav class="nav nav-masthead justify-content-center">
+        <a class="nav-link active" href="#">Home</a>
+        <a class="nav-link" href="#">Features</a>
+        <a class="nav-link" href="#">Contact</a>
+      </nav>
+    </div>
+  </header>
+    <div class="cover-container d-flex w-100 h-100 p-3 mx-auto flex-column">
+  
+
+  <main role="main" class="inner cover">
+    <h1 class="cover-heading">&nbsp;</h1>
+    <p class="lead">This page features my WebXR work and links</p>
+    <p class="lead">
+      <a href="https://developer.mozilla.org/en-US/docs/Web/API/WebXR_Device_API" class="btn btn-lg btn-secondary">Learn more</a>
+    </p>
+  </main>
+        <section>
+            <h3>CanvasUI</h3>
+            Examples
+            <ul>
+                <li><a href="dev/CanvasUI/simple">Hello World</a></li>
+                <li><a href="dev/CanvasUI/panel">Header|Main|Footer</a></li>
+                <li><a href="dev/CanvasUI/shaped">Custom shaped body</a></li>
+                <li><a href="dev/CanvasUI/buttons">Buttons</a></li>
+                <li><a href="dev/CanvasUI/scrolling">Scrolling</a></li>
+                <li><a href="dev/CanvasUI/images">Images</a></li>
+                <li><a href="dev/CanvasUI/multi">Multiple panels</a></li>
+                <li><a href="dev/CanvasUI/keyboard">Keyboard</a></li>
+            </ul>
+        </section> 
+        <section>
             <h3>Mozilla Examples - Only works in the iOS Viewer</h3>
             <ul>
                 <li><a href="mozilla-examples/hit_test">Example 1 - Mozilla Simple AR - only works in ios viewer app</a></li>
                 <li><a href="mozilla-examples/sensing">Example 2 - Mozilla Detect World Geometry - only works in ios viewer app</a></li>
             </ul>
-        </p>
-        <p>
+        </section>
+        <section>
             <h3>Useful links</h3>
             <ul>
-                <li><a href="https://three-mesh-ui.herokuapp.com/#basic_setup">three-mesh-ui</li>
+                <li><a href="https://three-mesh-ui.herokuapp.com/#basic_setup">three-mesh-ui</a></li>
             </ul>
-        </p>   
-        <p>
-            <h3>THREE.js Examples</h3>
-            <ul>
-                <li><a href="https://threejs.org/examples/webxr_ar_cones.html">AR - Cones</a></li>
-                <li><a href="https://threejs.org/examples/webxr_ar_hittest.html">AR - HitTest</a></li>
-                <li><a href="https://threejs.org/examples/webxr_ar_paint.html">AR - Paint</a></li>
-                <li><a href="https://threejs.org/examples/webxr_vr_ballshooter.html">VR - Ball Shooter</a></li>
-                <li><a href="https://threejs.org/examples/webxr_vr_dragging.html">VR - Dragging</a></li>
-                <li><a href="https://threejs.org/examples/webxr_vr_panorama.html">VR - Panorama</a></li>
-                <li><a href="https://threejs.org/examples/webxr_vr_panorama_depth.html">VR - Panorama Depth</a></li>
-                <li><a href="https://threejs.org/examples/webxr_vr_paint.html">VR - Paint</a></li>
-                <li><a href="https://threejs.org/examples/webxr_vr_rollercoaster.html">VR - Rollercoaster</a></li>
-                <li><a href="https://threejs.org/examples/webxr_vr_sculpt.html">VR - Sculpt</a></li>
-                <li><a href="https://threejs.org/examples/webxr_vr_video.html">VR - Video</a></li>
-            </ul>
-        </p>        
-        <p>
-            <h3>Dev Examples</h3>
-            <ul>
-                <li><a href="dev/example9">AR - Basic</li>
-                <li><a href="dev/example3">VR - Simple</a></li>
-                <li><a href="dev/example5">Example 5 - Dungeon</a></li>
-                <li><a href="dev/example6">Example 6 - Dungeon VR</a></li>
-                <li><a href="dev/example7">Example 7 - Dungeon VR with Ghouls</a></li>
-                <li><a href="dev/example8">Example 8 - Dungeon VR, Ghouls and audio</a></li>
-                <li><a href="dev/example10">Example 10 - Chair AR</a></li>
-                <li><a href="dev/example11">Example 11 - Knight AR</a></li>
-                <li><a href="dev/example12">Example 12 - Detect World Geometry</a></li>
-                <li><a href="dev/college/v1">College - v1</a></li>
-                <li><a href="dev/college/v2">College - v2</a></li>
-                <li><a href="dev/college/v3">College - v3</a></li>
-                <li><a href="dev/training">VR - Training</a></li>
-            </ul>
-        </p>
-
-        <h3>Course Content</h3>
-        <table>
-            <tr><td>lecture2_1</td><td><a href="start/lecture2_1">start</a></td><td><a href="complete/lecture2_1">complete</a></td></tr>
-            <tr><td>lecture2_2</td><td><a href="start/lecture2_2">start</a></td><td><a href="complete/lecture2_2">complete</a></td></tr>
-            <tr><td>lecture2_4</td><td><a href="start/lecture2_4">start</a></td><td><a href="complete/lecture2_4">complete</a></td></tr>
-            <tr><td>lecture2_6</td><td><a href="start/lecture2_6">start</a></td><td><a href="complete/lecture2_6">complete</a></td></tr>
-            <tr><td>lecture3_1</td><td><a href="start/lecture3_1">start</a></td><td><a href="complete/lecture3_1">complete</a></td></tr>
-            <tr><td>lecture3_2</td><td><a href="start/lecture3_2">start</a></td><td><a href="complete/lecture3_2">complete</a></td></tr>
-            <tr><td>lecture3_3</td><td><a href="start/lecture3_3">start</a></td><td><a href="complete/lecture3_3">complete</a></td></tr>
-            <tr><td>lecture3_4</td><td><a href="start/lecture3_4">start</a></td><td><a href="complete/lecture3_4">complete</a></td></tr>
-            <tr><td>lecture3_5</td><td><a href="start/lecture3_5">start</a></td><td><a href="complete/lecture3_5">complete</a></td></tr>
-            <tr><td>lecture3_6</td><td><a href="start/lecture3_6">start</a></td><td><a href="complete/lecture3_6">complete</a></td></tr>
-            <tr><td>lecture3_7</td><td><a href="start/lecture3_7">start</a></td><td><a href="complete/lecture3_7">complete</a></td></tr>
-            <tr><td>lecture3_8</td><td><a href="start/lecture3_8">start</a></td><td><a href="complete/lecture3_8">complete</a></td></tr>
-            <tr><td>lecture3_9</td><td><a href="start/lecture3_9">start</a></td><td><a href="complete/lecture3_9">complete</a></td></tr>
-            <tr><td>lecture3_10</td><td><a href="start/lecture3_10">start</a></td><td><a href="complete/lecture3_10">complete</a></td></tr>
-            <tr><td>lecture3_11</td><td><a href="start/lecture3_11">start</a></td><td><a href="complete/lecture3_11">complete</a></td></tr>
-        </table>
-    </body>
+        </section> 
+    
+<section>
+    <h3>Three.JS Examples</h3>
+    <ul>
+        <li><a href="https://threejs.org/examples/webxr_ar_cones.html">AR - Cones</a></li>
+        <li><a href="https://threejs.org/examples/webxr_ar_hittest.html">AR - HitTest</a></li>
+        <li><a href="https://threejs.org/examples/webxr_ar_paint.html">AR - Paint</a></li>
+        <li><a href="https://threejs.org/examples/webxr_vr_ballshooter.html">VR - Ball Shooter</a></li>
+        <li><a href="https://threejs.org/examples/webxr_vr_dragging.html">VR - Dragging</a></li>
+        <li><a href="https://threejs.org/examples/webxr_vr_panorama.html">VR - Panorama</a></li>
+        <li><a href="https://threejs.org/examples/webxr_vr_panorama_depth.html">VR - Panorama Depth</a></li>
+        <li><a href="https://threejs.org/examples/webxr_vr_paint.html">VR - Paint</a></li>
+        <li><a href="https://threejs.org/examples/webxr_vr_rollercoaster.html">VR - Rollercoaster</a></li>
+        <li><a href="https://threejs.org/examples/webxr_vr_sculpt.html">VR - Sculpt</a></li>
+        <li><a href="https://threejs.org/examples/webxr_vr_video.html">VR - Video</a></li>
+    </ul>
+</section> 
+        
+  <section>
+      <h3>Learn to create WebXR, AR and VR, experiences using Three.JS</h3>
+      <h5>Course content links</h5>
+       <ul>
+            <li>lecture2_1&emsp; <a href="start/lecture2_1">start</a>&emsp; <a href="complete/lecture2_1">complete</a></li>
+            <li>lecture2_2&emsp; <a href="start/lecture2_2">start</a>&emsp; <a href="complete/lecture2_2">complete</a></li>
+            <li>lecture2_4&emsp; <a href="start/lecture2_4">start</a>&emsp; <a href="complete/lecture2_4">complete</a></li>
+            <li>lecture2_6&emsp; <a href="start/lecture2_6">start</a>&emsp; <a href="complete/lecture2_6">complete</a></li>
+            <li>lecture3_1&emsp; <a href="start/lecture3_1">start</a>&emsp; <a href="complete/lecture3_1">complete</a></li>
+            <li>lecture3_2&emsp; <a href="start/lecture3_2">start</a>&emsp; <a href="complete/lecture3_2">complete</a></li>
+            <li>lecture3_3&emsp; <a href="start/lecture3_3">start</a>&emsp; <a href="complete/lecture3_3">complete</a></li>
+            <li>lecture3_4&emsp; <a href="start/lecture3_4">start</a>&emsp; <a href="complete/lecture3_4">complete</a></li>
+            <li>lecture3_5&emsp; <a href="start/lecture3_5">start</a>&emsp; <a href="complete/lecture3_5">complete</a></li>
+            <li>lecture3_6&emsp; <a href="start/lecture3_6">start</a>&emsp; <a href="complete/lecture3_6">complete</a></li>
+            <li>lecture3_7&emsp; <a href="start/lecture3_7">start</a>&emsp; <a href="complete/lecture3_7">complete</a></li>
+            <li>lecture3_8&emsp; <a href="start/lecture3_8">start</a>&emsp; <a href="complete/lecture3_8">complete</a></li>
+            <li>lecture3_9&emsp; <a href="start/lecture3_9">start</a>&emsp; <a href="complete/lecture3_9">complete</a></li>
+            <li>lecture3_10&emsp; <a href="start/lecture3_10">start</a>&emsp; <a href="complete/lecture3_10">complete</a></li>
+            <li>lecture3_11&emsp; <a href="start/lecture3_11">start</a>&emsp; <a href="complete/lecture3_11">complete</a></li>
+        </ul> 
+  </section>  
+        <br>
+</div>
+<footer class="mastfoot mt-auto">
+    <div class="inner">
+        <p><a href="mailto:nik.j.lever@gmail.com"><i class="fa fa-envelope"></i> Nik Lever</a>&emsp;<a href="https://twitter.com/NikLever"><i class="fa fa-twitter"></i> @NikLever</a>&emsp;<a href="https://www.facebook.com/groups/nikthreejs"><i class="fa fa-facebook-official"></i> </p>
+    </div>
+  </footer>
+</body>
 </html>
