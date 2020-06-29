@@ -12,17 +12,19 @@ class ControllerGestures extends THREE.EventDispatcher{
         const clock = new THREE.Clock();
         
         this.controller1 = renderer.xr.getController(0);
-        this.controller1.userData.gestures = {};
+        this.controller1.userData.gestures = { index: 0 };
         this.controller1.addEventListener( 'selectstart', onSelectStart );
         this.controller1.addEventListener( 'selectend', onSelectEnd );
         
         this.controller2 = renderer.xr.getController(1);
-        this.controller2.userData.gestures = {};
+        this.controller2.userData.gestures = { index: 1 };
         this.controller2.addEventListener( 'selectstart', onSelectStart );
         this.controller2.addEventListener( 'selectend', onSelectEnd );
         
         this.doubleClickLimit = 0.2;
         this.pressMinimum = 0.4;
+        this.right = new THREE.Vector3(1,0,0);
+        this.up = new THREE.Vector3(0,1,0);
         
         this.type = 'unknown';
         this.touchCount = 0;
@@ -34,7 +36,7 @@ class ControllerGestures extends THREE.EventDispatcher{
         function onSelectStart( ){
             const data = this.userData.gestures;
             
-            data.startPosition = this.position.clone();
+            data.startPosition = undefined;
             data.startTime = clock.getElapsedTime();
             
             if ( self.type.indexOf('tap') == -1) data.taps = 0;
@@ -52,18 +54,21 @@ class ControllerGestures extends THREE.EventDispatcher{
             const startToEnd = data.endTime - data.startTime;
             
             //console.log(`ControllerGestures.onSelectEnd: startToEnd:${startToEnd.toFixed(2)} taps:${data.taps}`);
-        
+            
             if (self.type === 'swipe'){
-                const direction = (self.controller1.position.y > data.startPosition.y) ? 'UP' : 'DOWN';
+                const direction = ( self.controller1.position.y < data.startPosition.y) ? "DOWN" : "UP";
                 self.dispatchEvent( { type:'swipe', direction } );
-            }else if (self.type !== "pinch" && self.type !== "rotate" ){
+                self.type = 'unknown';
+            }else if (self.type !== "pinch" && self.type !== "rotate" && self.type !== 'pan'){
                 if ( startToEnd < self.doubleClickLimit ){
                     self.type = "tap";
                     data.taps++;
                 }else if ( startToEnd > self.pressMinimum ){
-                    self.type = 'press';
-                    self.dispatchEvent( 'press' );
+                    self.dispatchEvent( { type: 'press', position: self.controller1.position, matrixWorld: self.controller1.matrixWorld }   );
+                    self.type = 'unknown';
                 }
+            }else{
+                self.type = 'unknown';
             }
             
             data.selectPressed = false;
@@ -79,23 +84,37 @@ class ControllerGestures extends THREE.EventDispatcher{
     update(){
         const data1 = this.controller1.userData.gestures;
         const data2 = this.controller2.userData.gestures;
+        const currentTime = this.clock.getElapsedTime();
+        
+        let elapsedTime;
+        
+        if (data1.selectPressed && data1.startPosition === undefined){
+            elapsedTime = currentTime - data1.startTime;
+            if (elapsedTime > 0.05 ) data1.startPosition = this.controller1.position.clone();
+        }
+        
+        if (data2.selectPressed && data2.startPosition === undefined){
+            elapsedTime = currentTime - data2.startTime;
+            if (elapsedTime > 0.05 ) data2.startPosition = this.controller2.position.clone();
+        }
         
         if (!data1.selectPressed && this.type === 'tap' ){
-            const elapsedTime = this.clock.getElapsedTime() - data1.endTime;
+            //Only dispatch event after double click limit is passed
+            elapsedTime = this.clock.getElapsedTime() - data1.endTime;
             if (elapsedTime > this.doubleClickLimit){
                 //console.log( `ControllerGestures.update dispatchEvent taps:${data1.taps}` );
                 switch( data1.taps ){
                     case 1:
-                        this.dispatchEvent( { type: 'tap' } );
+                        this.dispatchEvent( { type: 'tap', position: this.controller1.position, matrixWorld: this.controller1.matrixWorld } );
                         break;
                     case 2:
-                        this.dispatchEvent( { type: 'doubletap' });
+                        this.dispatchEvent( { type: 'doubletap', position: this.controller1.position, matrixWorld: this.controller1.matrixWorld } );
                         break;
                     case 3:
-                        this.dispatchEvent( { type: 'tripletap' } );
+                        this.dispatchEvent( { type: 'tripletap', position: this.controller1.position, matrixWorld: this.controller1.matrixWorld } );
                         break;
                     case 4:
-                        this.dispatchEvent( { type: 'quadtap' } );
+                        this.dispatchEvent( { type: 'quadtap', position: this.controller1.position, matrixWorld: this.controller1.matrixWorld }  );
                         break;
                 }
                 this.type = "unknown";
@@ -104,34 +123,61 @@ class ControllerGestures extends THREE.EventDispatcher{
         }
         
         if (this.type === 'unknown'){
-            if (data1.selectPressed && data2.selectPressed ){
-                const startDistance = data1.startPosition.distanceTo( data2.startPosition );
-                const currentDistance = this.controller1.position.distanceTo( this.controller2.position );
-                const delta = currentDistance - startDistance;
-                if ( Math.abs(delta) > 0.01 ){
-                    this.type = 'pinch';
+            if (data1.selectPressed && data1.startPosition !== undefined){
+                //startPosition is undefined for 1/20 sec
+                if (data2.selectPressed ){
+                    if (data2.startPosition !== undefined){
+                        //startPosition is undefined for 1/20 sec
+                        //test for pinch or rotate
+                        const startDistance = data1.startPosition.distanceTo( data2.startPosition );
+                        const currentDistance = this.controller1.position.distanceTo( this.controller2.position );
+                        const delta = currentDistance - startDistance;
+                        if ( Math.abs(delta) > 0.01 ){
+                            this.type = 'pinch';
+                            this.startDistance = this.controller1.position.distanceTo( this.controller2.position );
+                            this.dispatchEvent( { type: 'pinch', delta: 0, scale: 1, initialise: true } );
+                        }else{
+                            const v1 = data2.startPosition.clone().sub( data1.startPosition ).normalize();
+                            const v2 = this.controller2.position.clone().sub( this.controller1.position ).normalize();
+                            const theta = v1.angleTo( v2 );
+                            if (Math.abs(theta) > 0.2){
+                                this.type = 'rotate';
+                                this.startVector = v2.clone();
+                                this.dispatchEvent( { type: 'rotate', theta: 0, initialise: true } );
+                            }
+                        }
+                    }
                 }else{
-                    const v1 = data2.startPosition.clone().sub( data1.startPosition ).normalize();
-                    const v2 = this.controller2.position.clone().sub( this.controller1.position ).normalize();
-                    const theta = v1.angleTo( v2 );
-                    if (Math.abs(theta) > 0.2){
-                        this.type = 'rotate';
+                    //test for swipe or pan
+                    let dist = data1.startPosition.distanceTo( this.controller1.position );
+                    elapsedTime = this.clock.getElapsedTime() - data1.startTime;
+                    const velocity = dist/elapsedTime;
+                    console.log(`dist:${dist.toFixed(3)} velocity:${velocity.toFixed(3)}`);
+                    if ( dist > 0.01 && velocity > 0.1 ){
+                        const v = this.controller1.position.clone().sub( data1.startPosition );
+                        let maxY = (Math.abs(v.y) > Math.abs(v.x)) && (Math.abs(v.y) > Math.abs(v.z));
+                        if ( maxY )this.type = "swipe";
+                    }else if (dist > 0.006 && velocity < 0.03){
+                        this.type = "pan";
+                        this.startPosition = this.controller1.position.clone();
+                        this.dispatchEvent( { type: 'pan', delta: new THREE.Vector3(), initialise: true } );
                     }
                 }
-            }else if (data1.selectPressed){
-                const dist = this.controller1.position.y - data1.startPosition.y;
-                if (Math.abs(dist)> 0.01) this.type = "swipe";
             }
         }else if (this.type === 'pinch'){
-            const startDistance = data1.startPosition.distanceTo( data2.startPosition );
             const currentDistance = this.controller1.position.distanceTo( this.controller2.position );
-            const delta = currentDistance - startDistance;
-            this.dispatchEvent( { type: 'pinch', delta });
+            const delta = currentDistance - this.startDistance;
+            const scale = currentDistance/this.startDistance;
+            this.dispatchEvent( { type: 'pinch', delta, scale });
         }else if (this.type === 'rotate'){
-            const v1 = data2.startPosition.clone().sub( data1.startPosition ).normalize();
-            const v2 = this.controller2.position.clone().sub( this.controller1.position ).normalize();
-            const theta = v1.angleTo( v2 );
+            const v = this.controller2.position.clone().sub( this.controller1.position ).normalize();
+            let theta = this.startVector.angleTo( v );
+            const cross = this.startVector.clone().cross( v );
+            if (this.up.dot(cross) > 0) theta = -theta;
             this.dispatchEvent( { type: 'rotate', theta } );
+        }else if (this.type === 'pan'){
+            const delta = this.controller1.position.clone().sub( this.startPosition );
+            this.dispatchEvent( { type: 'pan', delta } );
         }
     }
 }

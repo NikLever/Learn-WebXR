@@ -1,12 +1,12 @@
 import { Mesh, CanvasTexture, MeshBasicMaterial, PlaneGeometry } from './three/three.module.js';
 
 /*An element is defined by 
-type: text|image|shape|button
+type: text | button | image | shape
 hover: hex
 active: hex
-position: x,y in pixels of canvas
-width: pixels
-height: pixels
+position: x, y, left, right, top, bottom
+width: pixels, will inherit from body if missing
+height: pixels, will inherit from body if missing
 overflow: fit | scroll | hidden
 textAlign: center | left | right
 fontSize: pixels
@@ -15,24 +15,40 @@ fontFamily: string
 padding: pixels
 backgroundColor: hex
 borderRadius: pixels
+clipPath: svg path
 border: width color style
 */
-class CanvasGUI{
+class CanvasUI{
 	constructor(content, css){
-		this.css = (css===undefined) ? { width:256, height:256, body:{fontFamily:'sans', size:30, padding:10, backgroundColor: '#000', fontColor:'#fff'} } : css;
+        const defaultcss = {
+            panelSize: { width: 1, height: 1},
+            width: 512,
+            height: 512,
+            opacity: 0.7,
+            body:{
+                fontFamily:'Arial', 
+                fontSize:30, 
+                padding:20, 
+                backgroundColor: '#000', 
+                fontColor:'#fff', 
+                borderRadius: 6,
+                opacity: 0.7
+            }
+        }
+		this.css = (css===undefined) ? defaultcss : css;
         
-        if (this.css.width === undefined) this.css.width = 256;
-        if (this.css.height === undefined) this.css.height = 256;
-        if (this.css.body === undefined) this.css.body = {fontFamily:'sans', size:30, padding:10, backgroundColor: '#000', fontColor:'#fff', borderRadius: 6};
+        if (this.css.width === undefined) this.css.width = 512;
+        if (this.css.height === undefined) this.css.height = 512;
+        if (this.css.body === undefined) this.css.body = {fontFamily:'Arial', size:30, padding:20, backgroundColor: '#000', fontColor:'#fff', borderRadius: 6};
         
         const canvas = this.createOffscreenCanvas(this.css.width, this.css.height);
         this.context = canvas.getContext('2d');
         this.context.save();
         
-        const opacity = css.opacity | 1.0;
+        const opacity = ( this.css.opacity !== undefined ) ? this.css.opacity : 0.7;
 		
         const planeMaterial = new MeshBasicMaterial({ transparent: true, opacity });
-        this.panelSize = ( css.panelSize !== undefined) ? css.panelSize : { width:0.5, height:0.5 }
+        this.panelSize = ( this.css.panelSize !== undefined) ? this.css.panelSize : { width:1, height:1 }
 		const planeGeometry = new PlaneGeometry(this.panelSize.width, this.panelSize.height);
 		
 		this.mesh = new Mesh(planeGeometry, planeMaterial);
@@ -40,47 +56,56 @@ class CanvasGUI{
         this.texture = new CanvasTexture(canvas);
         this.mesh.material.map = this.texture;
         
-        const self = this;
-
-        Object.entries(this.css).forEach( ([name, value ]) => {
-           if (typeof value === 'object'){
-               if (name!=='panelSize'){
-                   //self.setElementClipPath( value );
-               }
-           } 
-        });
-
-        this.content = content;
+        if (content === undefined){
+            this.content = { body: "" };
+            this.css.body.type = "text";
+        }else{
+            this.content = content;
+        }
+        
         this.needsUpdate = true;
         
         this.update();
 	}
 	
     setClip( elm ){
-        const pos = (elm.position!==undefined) ? elm.position : { x:0, y: 0 };
-        const borderRadius = elm.borderRadius | 0;
-        const width = elm.width | this.css.width;
-        const height = elm.height | this.css.height;
         const context = this.context;
+        
         context.restore();
         context.save();
-        context.beginPath();
-        if (borderRadius !== 0){
-            const angle = Math.PI/2;
-            //start top left
-            context.moveTo(pos.x + borderRadius, pos.y );
-            context.arc( pos.x + borderRadius, pos.y + borderRadius, borderRadius, angle, angle*2, true);
-            context.lineTo( pos.x, pos.y + height - borderRadius );
-            context.arc( pos.x + borderRadius, pos.y + height - borderRadius, borderRadius, 0, angle, true);
-            context.lineTo( pos.x + width - borderRadius, pos.y + height);
-            context.arc( pos.x + width - borderRadius, pos.y + height - borderRadius, borderRadius, angle*3, angle*4, true);
-            context.lineTo( pos.x + width, pos.y + borderRadius );
-            context.arc( pos.x + width - borderRadius, pos.y + borderRadius, borderRadius, angle*2, angle*3, true);
-            context.closePath();
+        
+        if (elm.clipPath !== undefined){
+            const path = new Path2D( elm.clipPath );
+            context.clip( path );
         }else{
-            context.rect( pos.x, pos.y, width, height );
+            const pos = (elm.position!==undefined) ? elm.position : { x:0, y: 0 };
+            const borderRadius = elm.borderRadius || 0;
+            const width = elm.width || this.css.width;
+            const height = elm.height || this.css.height;
+           
+            context.beginPath();
+            
+            if (borderRadius !== 0){
+                const angle = Math.PI/2;
+                //start top left
+                context.moveTo(pos.x + borderRadius, pos.y );
+                context.arc( pos.x + borderRadius, pos.y + borderRadius, borderRadius, angle, angle*2, true);
+                context.lineTo( pos.x, pos.y + height - borderRadius );
+                context.arc( pos.x + borderRadius, pos.y + height - borderRadius, borderRadius, 0, angle, true);
+                context.lineTo( pos.x + width - borderRadius, pos.y + height);
+                context.arc( pos.x + width - borderRadius, pos.y + height - borderRadius, borderRadius, angle*3, angle*4, true);
+                context.lineTo( pos.x + width, pos.y + borderRadius );
+                context.arc( pos.x + width - borderRadius, pos.y + borderRadius, borderRadius, angle*2, angle*3, true);
+                context.closePath();
+                context.clip();
+            }else{
+                context.rect( pos.x, pos.y, width, height );
+                context.clip();
+            }
+            
+            
         }
-        context.clip();
+        
     }
 
     setPosition(x, y, z){
@@ -192,12 +217,11 @@ class CanvasGUI{
 		context.clearRect(0, 0, this.css.width, this.css.height);
         
         const bgColor = ( this.css.body.backgroundColor ) ? this.css.body.backgroundColor : "#000";
-        const fontFamily = ( this.css.body.fontFamily ) ? this.css.body.fontFamily : "sans";
+        const fontFamily = ( this.css.body.fontFamily ) ? this.css.body.fontFamily : "Arial";
         const fontColor = ( this.css.body.fontColor ) ? this.css.body.fontColor : "#fff";
         const fontSize = ( this.css.body.fontSize ) ? this.css.body.fontSize : 30;
-        context.fillStyle = bgColor;
-        context.restore();
         this.setClip(this.css.body);
+        context.fillStyle = bgColor;
         context.fillRect( 0, 0, this.css.width, this.css.height);
         
         const self = this;
@@ -207,13 +231,20 @@ class CanvasGUI{
             const display = (css.display !== undefined) ? css.display : 'block';
             
             if (display !== 'none'){
-                context.restore();         
-                self.setClip( css );
-
                 const pos = (css.position!==undefined) ? css.position : { x: 0, y: 0 };
+                if (pos.left !== undefined && pos.x === undefined ) pos.x = pos.left;
+                if (pos.top !== undefined && pos.y === undefined ) pos.y = pos.top;
+                
                 const width = (css.width!==undefined) ? css.width : self.css.width;
                 const height = (css.height!==undefined) ? css.height : self.css.height;
 
+                if (pos.right !== undefined && pos.x === undefined ) pos.x = self.css.width - pos.right - width;
+                if (pos.bottom !== undefined && pos.y === undefined ) pos.y = self.css.height - pos.bottom - height;
+                if (pos.x === undefined) pos.x = 0;
+                if (pos.y === undefined) pos.y = 0;
+                
+                self.setClip( css );
+                
                 if ( css.backgroundColor !== undefined){
                     context.fillStyle = css.backgroundColor;
                     context.fillRect( pos.x, pos.y, width, height );
@@ -284,7 +315,11 @@ class CanvasGUI{
         const height = (css.height!==undefined) ? css.height : this.css.height;
         const pos = (css.position!==undefined) ? css.position : { x:0, y:0 };
         const padding = (css.padding!==undefined) ? css.padding : (this.css.body.padding!==undefined) ? this.css.body.padding : 10;
-        const rect = { x:pos.x+padding, y:pos.y+padding, width: width - 2*padding, height: height - 2*padding};
+        const paddingTop = (css.paddingTop!==undefined) ? css.paddingTop : padding;
+        const paddingLeft = (css.paddingLeft!==undefined) ? css.paddingLeft : padding;
+        const paddingBottom = (css.paddingBottom!==undefined) ? css.paddingBottom : padding;
+        const paddingRight = (css.paddingRight!==undefined) ? css.paddingRight : padding;
+        const rect = { x:pos.x+paddingLeft, y:pos.y+paddingTop, width: width - paddingLeft - paddingRight, height: height - paddingTop - paddingBottom };
         const textAlign = (css.textAlign !== undefined) ? css.textAlign : (this.css.body.textAlign !== undefined) ? this.css.body.textAlign : "left";
         const fontSize = (css.fontSize !== undefined ) ? css.fontSize : ( this.css.body.fontSize !== undefined) ? this.css.body.fontSize : 30;
         const fontFamily = (css.fontFamily!==undefined) ? css.fontFamily : (this.css.body.fontFamily!==undefined) ? this.css.body.fontFamily : 'Arial';
@@ -295,7 +330,7 @@ class CanvasGUI{
         
         context.textAlign = textAlign;
         
-		context.font = `${fontSize}px ${fontFamily}`;
+		context.font = `${fontSize}px '${fontFamily}'`;
 		
         words.forEach( function(word){
 			let testLine = `${line}${word} `;
@@ -350,4 +385,4 @@ class CanvasGUI{
 	}
 }
 
-export { CanvasGUI };
+export { CanvasUI };

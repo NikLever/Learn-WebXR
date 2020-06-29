@@ -2,7 +2,7 @@ import * as THREE from '../../libs/three/three.module.js';
 import { OrbitControls } from '../../libs/three/jsm/OrbitControls.js';
 import { GLTFLoader } from '../../libs/three/jsm/GLTFLoader.js';
 import { Stats } from '../../libs/stats.module.js';
-import { CanvasGUI } from '../../libs/CanvasGUI.js'
+import { CanvasUI } from '../../libs/CanvasUI.js'
 import { ARButton } from '../../libs/ARButton.js';
 import {
 	Constants as MotionControllerConstants,
@@ -94,10 +94,10 @@ class App{
             msg: "controller"
         }
         
-        const gui = new CanvasGUI( content, css );
-        gui.mesh.material.opacity = 0.7;
+        const ui = new CanvasUI( content, css );
+        ui.mesh.material.opacity = 0.7;
         
-        this.gui = gui;
+        this.ui = ui;
     }
     
     setupVR(){
@@ -124,19 +124,19 @@ class App{
                     });
 
                     self.info = info;
-                    self.gui.updateElement( "info", JSON.stringify(info) );
+                    self.ui.updateElement( "info", JSON.stringify(info) );
 
                 } );
             }
         }
         
         function onSessionStart(){
-            self.gui.mesh.position.set( 0, -0.5, -1.1 );
-            self.camera.add( self.gui.mesh );
+            self.ui.mesh.position.set( 0, -0.5, -1.1 );
+            self.camera.add( self.ui.mesh );
         }
         
         function onSessionEnd(){
-            self.camera.remove( self.gui.mesh );
+            self.camera.remove( self.ui.mesh );
         }
 
         const btn = new ARButton( this.renderer, onSessionStart, onSessionEnd );
@@ -164,13 +164,13 @@ class App{
 	render( ) {   
         const dt = this.clock.getDelta();
         this.stats.update();
-        this.gui.update();
+        this.ui.update();
         if (this.renderer.xr.isPresenting){
             const pos = this.controller.getWorldPosition( this.origin );
             this.euler.setFromQuaternion( this.controller.getWorldQuaternion( this.quaternion ) );
             const rot = this.euler;
             const msg = this.createMsg( pos, rot );
-            this.gui.updateElement("msg", msg);
+            this.ui.updateElement("msg", msg);
         }
         this.renderer.render( this.scene, this.camera );
     }
