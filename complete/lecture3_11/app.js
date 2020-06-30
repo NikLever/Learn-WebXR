@@ -45,7 +45,7 @@ class App{
         this.quaternion = new THREE.Quaternion();
         
         this.initScene();
-        this.setupVR();
+        this.setupXR();
         
         window.addEventListener('resize', this.resize.bind(this) );
 	}	
@@ -105,53 +105,38 @@ class App{
 			}
 		);
         
-        this.createGUI();
+        this.createUI();
     }
     
-    createGUI() {
+    createUI() {
         
-        const css = {
+        const config = {
             panelSize: { width: 0.2, height: 0.05 },
-            width: 512,
             height: 128,
-            opacity: 0.7,
-            body:{
-                fontFamily:'Arial', 
-                fontSize:30, 
-                padding:20, 
-                backgroundColor: '#000', 
-                fontColor:'#fff', 
-                borderRadius: 6,
-                opacity: 0.7
-            },
-            info:{
-                type: "text",
-                position:{ x:0, y:0 }
-            }
+            info:{ type: "text" }
         }
         const content = {
             info: "Debug info"
         }
         
-        const gui = new CanvasUI( content, css );
-        gui.mesh.material.opacity = 0.7;
+        const ui = new CanvasUI( content, config );
         
-        this.gui = gui;
+        this.ui = ui;
     }
     
-    setupVR(){
+    setupXR(){
         this.renderer.xr.enabled = true; 
         
         const self = this;
         let controller, controller1;
         
         function onSessionStart(){
-            self.gui.mesh.position.set( 0, -0.2, -0.3 );
-            self.camera.add( self.gui.mesh );
+            self.ui.mesh.position.set( 0, -0.2, -0.3 );
+            self.camera.add( self.ui.mesh );
         }
         
         function onSessionEnd(){
-            self.camera.remove( self.gui.mesh );
+            self.camera.remove( self.ui.mesh );
         }
         
         const btn = new ARButton( this.renderer, onSessionStart, onSessionEnd );
@@ -159,7 +144,7 @@ class App{
         this.gestures = new ControllerGestures( this.renderer );
         this.gestures.addEventListener( 'tap', (ev)=>{
             console.log( 'tap' ); 
-            self.gui.updateElement('info', 'tap' );
+            self.ui.updateElement('info', 'tap' );
             if (!self.knight.object.visible){
                 self.knight.object.visible = true;
                 self.knight.object.position.set( 0, -0.3, -0.5 ).add( ev.position );
@@ -168,11 +153,11 @@ class App{
         });
         this.gestures.addEventListener( 'doubletap', (ev)=>{
             console.log( 'doubletap'); 
-            self.gui.updateElement('info', 'doubletap' );
+            self.ui.updateElement('info', 'doubletap' );
         });
         this.gestures.addEventListener( 'press', (ev)=>{
             console.log( 'press' );    
-            self.gui.updateElement('info', 'press' );
+            self.ui.updateElement('info', 'press' );
         });
         this.gestures.addEventListener( 'pan', (ev)=>{
             console.log( ev );
@@ -181,12 +166,12 @@ class App{
             }else{
                 const pos = self.startPosition.clone().add( ev.delta.multiplyScalar(3) );
                 self.knight.object.position.copy( pos );
-                self.gui.updateElement('info', `pan x:${ev.delta.x.toFixed(3)}, y:${ev.delta.y.toFixed(3)}, x:${ev.delta.z.toFixed(3)}` );
+                self.ui.updateElement('info', `pan x:${ev.delta.x.toFixed(3)}, y:${ev.delta.y.toFixed(3)}, x:${ev.delta.z.toFixed(3)}` );
             } 
         });
         this.gestures.addEventListener( 'swipe', (ev)=>{
             console.log( ev );   
-            self.gui.updateElement('info', `swipe ${ev.direction}` );
+            self.ui.updateElement('info', `swipe ${ev.direction}` );
             if (self.knight.object.visible){
                 self.knight.object.visible = false;
                 self.scene.remove( self.knight.object ); 
@@ -199,7 +184,7 @@ class App{
             }else{
                 const scale = self.startScale.clone().multiplyScalar(ev.scale);
                 self.knight.object.scale.copy( scale );
-                self.gui.updateElement('info', `pinch delta:${ev.delta.toFixed(3)} scale:${ev.scale.toFixed(2)}` );
+                self.ui.updateElement('info', `pinch delta:${ev.delta.toFixed(3)} scale:${ev.scale.toFixed(2)}` );
             }
         });
         this.gestures.addEventListener( 'rotate', (ev)=>{
@@ -209,7 +194,7 @@ class App{
             }else{
                 self.knight.object.quaternion.copy( self.startQuaternion );
                 self.knight.object.rotateY( ev.theta );
-                self.gui.updateElement('info', `rotate ${ev.theta.toFixed(3)}`  );
+                self.ui.updateElement('info', `rotate ${ev.theta.toFixed(3)}`  );
             }
         });
         
@@ -227,7 +212,7 @@ class App{
         this.stats.update();
         if ( this.renderer.xr.isPresenting ){
             this.gestures.update();
-            this.gui.update();
+            this.ui.update();
         }
         if ( this.knight !== undefined ) this.knight.update(dt);
         this.renderer.render( this.scene, this.camera );
