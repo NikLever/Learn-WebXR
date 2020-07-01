@@ -1,4 +1,4 @@
-import { Mesh, CanvasTexture, MeshBasicMaterial, PlaneGeometry } from './three/three.module.js';
+import { Mesh, CanvasTexture, MeshBasicMaterial, PlaneGeometry, Matrix4, Raycaster } from './three/three.module.js';
 
 /*An element is defined by 
 type: text | button | image | shape
@@ -19,8 +19,8 @@ clipPath: svg path
 border: width color style
 */
 class CanvasUI{
-	constructor(content, css){
-        const defaultcss = {
+	constructor(content, config){
+        const defaultconfig = {
             panelSize: { width: 1, height: 1},
             width: 512,
             height: 512,
@@ -35,20 +35,40 @@ class CanvasUI{
                 opacity: 0.7
             }
         }
-		this.css = (css===undefined) ? defaultcss : css;
+		this.config = (config===undefined) ? defaultconfig : config;
         
-        if (this.css.width === undefined) this.css.width = 512;
-        if (this.css.height === undefined) this.css.height = 512;
-        if (this.css.body === undefined) this.css.body = {fontFamily:'Arial', size:30, padding:20, backgroundColor: '#000', fontColor:'#fff', borderRadius: 6};
+        if (this.config.width === undefined) this.config.width = 512;
+        if (this.config.height === undefined) this.config.height = 512;
+        if (this.config.body === undefined) this.config.body = {fontFamily:'Arial', size:30, padding:20, backgroundColor: '#000', fontColor:'#fff', borderRadius: 6};
         
-        const canvas = this.createOffscreenCanvas(this.css.width, this.css.height);
+        Object.entries( this.config ).forEach( ( [ name, value]) => {
+            if ( typeof(value) === 'object' && name !== 'panelSize' ){
+                const pos = (value.position!==undefined) ? value.position : { x: 0, y: 0 };
+                
+                if (pos.left !== undefined && pos.x === undefined ) pos.x = pos.left;
+                if (pos.top !== undefined && pos.y === undefined ) pos.y = pos.top;
+
+                const width = (value.width!==undefined) ? value.width : this.config.width;
+                const height = (value.height!==undefined) ? value.height : this.config.height;
+
+                if (pos.right !== undefined && pos.x === undefined ) pos.x = this.config.width - pos.right - width;
+                if (pos.bottom !== undefined && pos.y === undefined ) pos.y = this.config.height - pos.bottom - height;
+                
+                if (pos.x === undefined) pos.x = 0;
+                if (pos.y === undefined) pos.y = 0;
+                
+                value.position = pos;
+            }
+        })
+        
+        const canvas = this.createOffscreenCanvas(this.config.width, this.config.height);
         this.context = canvas.getContext('2d');
         this.context.save();
         
-        const opacity = ( this.css.opacity !== undefined ) ? this.css.opacity : 0.7;
+        const opacity = ( this.config.opacity !== undefined ) ? this.config.opacity : 0.7;
 		
         const planeMaterial = new MeshBasicMaterial({ transparent: true, opacity });
-        this.panelSize = ( this.css.panelSize !== undefined) ? this.css.panelSize : { width:1, height:1 }
+        this.panelSize = ( this.config.panelSize !== undefined) ? this.config.panelSize : { width:1, height:1 }
 		const planeGeometry = new PlaneGeometry(this.panelSize.width, this.panelSize.height);
 		
 		this.mesh = new Mesh(planeGeometry, planeMaterial);
@@ -58,9 +78,18 @@ class CanvasUI{
         
         if (content === undefined){
             this.content = { body: "" };
-            this.css.body.type = "text";
+            this.config.body.type = "text";
         }else{
             this.content = content;
+            const btns = Object.values(config).filter( (value) => { return value.type == "button" });
+            if (btns.length>0){
+                if ( config === undefined || config.renderer === undefined ){
+                    console.warn("CanvasUI: button in the config but no renderer")
+                }else{
+                    this.renderer = config.renderer;
+                    this.initControllers();
+                }
+            }
         }
         
         this.selectedElements = [ undefined, undefined ];
@@ -70,6 +99,24 @@ class CanvasUI{
         this.update();
 	}
 	
+    initControllers(){
+        this.workingMatrix = new Matrix4();
+        this.raycaster = new Raycaster();
+        
+        const self = this;
+        
+        function onSelect( event ) {     
+            const index = (event.target === self.controller) ? 0 : 1
+            self.select( index );
+        }
+        
+        this.controller = this.renderer.xr.getController( 0 );
+        this.controller.addEventListener( 'select', onSelect );
+        this.controller1 = this.renderer.xr.getController( 1 );
+        this.controller1.addEventListener( 'select', onSelect );
+        
+    }
+    
     setClip( elm ){
         const context = this.context;
         
@@ -82,8 +129,8 @@ class CanvasUI{
         }else{
             const pos = (elm.position!==undefined) ? elm.position : { x:0, y: 0 };
             const borderRadius = elm.borderRadius || 0;
-            const width = elm.width || this.css.width;
-            const height = elm.height || this.css.height;
+            const width = elm.width || this.config.width;
+            const height = elm.height || this.config.height;
            
             context.beginPath();
             
@@ -145,24 +192,24 @@ class CanvasUI{
 
     getElementAtLocation( x, y ){
         const self = this;
-        const elms = Object.entries( this.css ).filter( ([ name, elm ]) => {
+        const elms = Object.entries( this.config ).filter( ([ name, elm ]) => {
             if (typeof elm === 'object' && name !== 'panelSize' && name !== 'body'){
                 const pos = elm.position;
-                const width = (elm.width !== undefined) ? elm.width : self.css.width;
-                const height = (elm.height !== undefined) ? elm.height : self.css.height;
+                const width = (elm.width !== undefined) ? elm.width : self.config.width;
+                const height = (elm.height !== undefined) ? elm.height : self.config.height;
                 return (x>=pos.x && x<(pos.x+width) && y>=pos.y && y<(pos.y + height));
             }
         });
-        const elm = (elms.length==0) ? null : this.css[elms[0][0]];
+        const elm = (elms.length==0) ? null : this.config[elms[0][0]];
         //console.log(`selected = ${elm}`);
         return elm;
     }
 
-    updateCSS( name, property, value ){  
-        let elm = this.css[name];
+    updateConfig( name, property, value ){  
+        let elm = this.config[name];
         
         if (elm===undefined){
-            console.warn( `CanvasGUI.updateCSS: No ${name} found`);
+            console.warn( `CanvasUI.updateconfig: No ${name} found`);
             return;
         }
         
@@ -185,8 +232,8 @@ class CanvasUI{
             localPos.addScalar(0.5);
             //Invert the y axis
             localPos.y = 1 - localPos.y;
-            const x = localPos.x * this.css.width;
-            const y = localPos.y * this.css.height;
+            const x = localPos.x * this.config.width;
+            const y = localPos.y * this.config.height;
             //console.log( `hover localPos:${localPos.x.toFixed(2)},${localPos.y.toFixed(2)}>>texturePos:${x.toFixed(0)}, ${y.toFixed(0)}`);
             const elm = this.getElementAtLocation( x, y );
             if (elm===null){
@@ -211,70 +258,82 @@ class CanvasUI{
         }
     }
     
-	update(){
-		if (this.mesh===undefined || !this.needsUpdate) return;
+    handleController( controller, index ){
+        this.workingMatrix.identity().extractRotation( controller.matrixWorld );
+
+        this.raycaster.ray.origin.setFromMatrixPosition( controller.matrixWorld );
+        this.raycaster.ray.direction.set( 0, 0, - 1 ).applyMatrix4( this.workingMatrix );
+
+        const intersects = this.raycaster.intersectObject( this.mesh );
+
+        if (intersects.length>0){
+            this.hover( index, intersects[0].point );
+        }else{
+            this.hover( index );
+        }
+    }
+    
+	update(){        
+        if (this.mesh===undefined) return;
+            
+        if ( this.controller ) this.handleController( this.controller, 0 );
+        if ( this.controller1 ) this.handleController( this.controller1, 1 );
+
+        if ( !this.needsUpdate ) return;
 		
 		let context = this.context;
 		
-		context.clearRect(0, 0, this.css.width, this.css.height);
+		context.clearRect(0, 0, this.config.width, this.config.height);
         
-        const bgColor = ( this.css.body.backgroundColor ) ? this.css.body.backgroundColor : "#000";
-        const fontFamily = ( this.css.body.fontFamily ) ? this.css.body.fontFamily : "Arial";
-        const fontColor = ( this.css.body.fontColor ) ? this.css.body.fontColor : "#fff";
-        const fontSize = ( this.css.body.fontSize ) ? this.css.body.fontSize : 30;
-        this.setClip(this.css.body);
+        const bgColor = ( this.config.body.backgroundColor ) ? this.config.body.backgroundColor : "#000";
+        const fontFamily = ( this.config.body.fontFamily ) ? this.config.body.fontFamily : "Arial";
+        const fontColor = ( this.config.body.fontColor ) ? this.config.body.fontColor : "#fff";
+        const fontSize = ( this.config.body.fontSize ) ? this.config.body.fontSize : 30;
+        this.setClip(this.config.body);
         context.fillStyle = bgColor;
-        context.fillRect( 0, 0, this.css.width, this.css.height);
+        context.fillRect( 0, 0, this.config.width, this.config.height);
         
         const self = this;
         
         Object.entries(this.content).forEach( ([name, content]) => {
-            const css = (self.css[name]!==undefined) ? self.css[name] : self.css.body;
-            const display = (css.display !== undefined) ? css.display : 'block';
+            const config = (self.config[name]!==undefined) ? self.config[name] : self.config.body;
+            const display = (config.display !== undefined) ? config.display : 'block';
             
             if (display !== 'none'){
-                const pos = (css.position!==undefined) ? css.position : { x: 0, y: 0 };
-                if (pos.left !== undefined && pos.x === undefined ) pos.x = pos.left;
-                if (pos.top !== undefined && pos.y === undefined ) pos.y = pos.top;
-                
-                const width = (css.width!==undefined) ? css.width : self.css.width;
-                const height = (css.height!==undefined) ? css.height : self.css.height;
+                const pos = (config.position!==undefined) ? config.position : { x: 0, y: 0 };                
+                const width = (config.width!==undefined) ? config.width : self.config.width;
+                const height = (config.height!==undefined) ? config.height : self.config.height;
 
-                if (pos.right !== undefined && pos.x === undefined ) pos.x = self.css.width - pos.right - width;
-                if (pos.bottom !== undefined && pos.y === undefined ) pos.y = self.css.height - pos.bottom - height;
-                if (pos.x === undefined) pos.x = 0;
-                if (pos.y === undefined) pos.y = 0;
-                
-                if (css.type == "button" && !content.toLowerCase().startsWith("<path>")){
-                    if ( css.borderRadius === undefined) css.borderRadius = 6;
-                    if ( css.textAlign === undefined ) css.textAlign = "center";
+                if (config.type == "button" && !content.toLowerCase().startsWith("<path>")){
+                    if ( config.borderRadius === undefined) config.borderRadius = 6;
+                    if ( config.textAlign === undefined ) config.textAlign = "center";
                 }
                 
-                self.setClip( css );
+                self.setClip( config );
                 
                 const svgPath = content.toLowerCase().startsWith("<path>");
-                const hover = ((self.selectedElements[0] !== undefined && this.selectedElements[0] === css)||(self.selectedElements[1] !== undefined && this.selectedElements[1] === css));
+                const hover = ((self.selectedElements[0] !== undefined && this.selectedElements[0] === config)||(self.selectedElements[1] !== undefined && this.selectedElements[1] === config));
                 
-                if ( css.backgroundColor !== undefined){
-                    if (hover && css.type== "button" && css.hover !== undefined){
-                        context.fillStyle = css.hover;
+                if ( config.backgroundColor !== undefined){
+                    if (hover && config.type== "button" && config.hover !== undefined){
+                        context.fillStyle = config.hover;
                     }else{
-                        context.fillStyle = css.backgroundColor;
+                        context.fillStyle = config.backgroundColor;
                     }
                     context.fillRect( pos.x, pos.y, width, height );
                 }
 
-                if (css.type == "text" || css.type == "button"){
+                if (config.type == "text" || config.type == "button"){
                     let stroke = false;
                     if (hover){
-                        if (!svgPath && css.type == "button"){
-                            context.fillStyle = (css.fontColor !== undefined) ? css.fontColor : fontColor;
+                        if (!svgPath && config.type == "button"){
+                            context.fillStyle = (config.fontColor !== undefined) ? config.fontColor : fontColor;
                         }else{
-                            context.fillStyle = (css.hover !== undefined) ? css.hover : ( css.fontColor !== undefined) ? css.fontColor : fontColor;
+                            context.fillStyle = (config.hover !== undefined) ? config.hover : ( config.fontColor !== undefined) ? config.fontColor : fontColor;
                         }
-                        stroke = (css.hover === undefined);
+                        stroke = (config.hover === undefined);
                     }else{
-                        context.fillStyle = (css.fontColor !== undefined) ? css.fontColor : fontColor;
+                        context.fillStyle = (config.fontColor !== undefined) ? config.fontColor : fontColor;
                     }
                     
                     if ( svgPath ){
@@ -295,18 +354,18 @@ class CanvasUI{
                         context.rect( pos.x, pos.y, width, height);
                         context.stroke();
                     }
-                }else if (css.type == "img"){
-                    if (css.img === undefined){
+                }else if (config.type == "img"){
+                    if (config.img === undefined){
                         this.loadImage(content).then(img =>{
                             console.log(`w: ${img.width} | h: ${img.height}`);
-                            css.img = img;
+                            config.img = img;
                             self.needsUpdate = true;
                             self.update();           
                         }).catch(err => console.error(err));
                     }else{
-                        const aspect = css.img.width/css.img.height;
+                        const aspect = config.img.width/config.img.height;
                         const h = width/aspect;
-                        context.drawImage( css.img, pos.x, pos.y, width, h );           
+                        context.drawImage( config.img, pos.x, pos.y, width, h );           
                     }
                 }
             }
@@ -337,20 +396,20 @@ class CanvasUI{
 		const words = txt.split(' ');
         let line = '';
 		const lines = [];
-        const css = (this.css[name]!==undefined) ? this.css[name] : this.css.body;
-        const width = (css.width!==undefined) ? css.width : this.css.width;
-        const height = (css.height!==undefined) ? css.height : this.css.height;
-        const pos = (css.position!==undefined) ? css.position : { x:0, y:0 };
-        const padding = (css.padding!==undefined) ? css.padding : (this.css.body.padding!==undefined) ? this.css.body.padding : 10;
-        const paddingTop = (css.paddingTop!==undefined) ? css.paddingTop : padding;
-        const paddingLeft = (css.paddingLeft!==undefined) ? css.paddingLeft : padding;
-        const paddingBottom = (css.paddingBottom!==undefined) ? css.paddingBottom : padding;
-        const paddingRight = (css.paddingRight!==undefined) ? css.paddingRight : padding;
+        const config = (this.config[name]!==undefined) ? this.config[name] : this.config.body;
+        const width = (config.width!==undefined) ? config.width : this.config.width;
+        const height = (config.height!==undefined) ? config.height : this.config.height;
+        const pos = (config.position!==undefined) ? config.position : { x:0, y:0 };
+        const padding = (config.padding!==undefined) ? config.padding : (this.config.body.padding!==undefined) ? this.config.body.padding : 10;
+        const paddingTop = (config.paddingTop!==undefined) ? config.paddingTop : padding;
+        const paddingLeft = (config.paddingLeft!==undefined) ? config.paddingLeft : padding;
+        const paddingBottom = (config.paddingBottom!==undefined) ? config.paddingBottom : padding;
+        const paddingRight = (config.paddingRight!==undefined) ? config.paddingRight : padding;
         const rect = { x:pos.x+paddingLeft, y:pos.y+paddingTop, width: width - paddingLeft - paddingRight, height: height - paddingTop - paddingBottom };
-        const textAlign = (css.textAlign !== undefined) ? css.textAlign : (this.css.body.textAlign !== undefined) ? this.css.body.textAlign : "left";
-        const fontSize = (css.fontSize !== undefined ) ? css.fontSize : ( this.css.body.fontSize !== undefined) ? this.css.body.fontSize : 30;
-        const fontFamily = (css.fontFamily!==undefined) ? css.fontFamily : (this.css.body.fontFamily!==undefined) ? this.css.body.fontFamily : 'Arial';
-        const leading = (css.leading !== undefined) ? css.leading : (this.css.body.leading !== undefined) ? this.css.body.leading : 8;
+        const textAlign = (config.textAlign !== undefined) ? config.textAlign : (this.config.body.textAlign !== undefined) ? this.config.body.textAlign : "left";
+        const fontSize = (config.fontSize !== undefined ) ? config.fontSize : ( this.config.body.fontSize !== undefined) ? this.config.body.fontSize : 30;
+        const fontFamily = (config.fontFamily!==undefined) ? config.fontFamily : (this.config.body.fontFamily!==undefined) ? this.config.body.fontFamily : 'Arial';
+        const leading = (config.leading !== undefined) ? config.leading : (this.config.body.leading !== undefined) ? this.config.body.leading : 8;
 		const lineHeight = fontSize + leading;
         
         const context = this.context;
