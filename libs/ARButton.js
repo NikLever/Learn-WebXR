@@ -75,7 +75,7 @@ class ARButton{
 
             currentSession = session;
             
-            if (self.onSessionStart !== undefined) self.onSessionStart();
+            if (self.onSessionStart !== undefined && self.onSessionStart !== null) self.onSessionStart();
 
         }
 
@@ -88,7 +88,7 @@ class ARButton{
 
             currentSession = null;
             
-            if (self.onSessionEnd !== undefined) self.onSessionEnd();
+            if (self.onSessionEnd !== undefined && self.onSessionEnd !== null) self.onSessionEnd();
 
         }
 
