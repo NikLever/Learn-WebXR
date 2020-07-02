@@ -29,9 +29,6 @@ class App{
         
 		container.appendChild( this.renderer.domElement );
         
-        this.workingMatrix = new THREE.Matrix4();
-        this.raycaster = new THREE.Raycaster();
-        
         this.initScene();
         this.setupVR();
         
@@ -84,6 +81,7 @@ class App{
             stop: { type: "button", position:{ top: 64, left: 64 }, width: 64, fontColor: "#bb0", hover: "#ff0", onSelect: onStop },
             next: { type: "button", position:{ top: 64, left: 128 }, width: 64, fontColor: "#bb0", hover: "#ff0", onSelect: onNext },
             continue: { type: "button", position:{ top: 70, right: 10 }, width: 200, height: 52, fontColor: "#fff", backgroundColor: "#1bf", hover: "#3df", onSelect: onContinue },
+            renderer: this.renderer
         }
         const content = {
             info: "",
@@ -110,13 +108,6 @@ class App{
         }
         
         const btn = new VRButton( this.renderer, onSessionStart, onSessionEnd );
-        
-        function onSelectStart( event ) {
-            
-            const index = (event.target === self.controller) ? 0 : 1
-            if ( self.ui!==undefined ) self.ui.select( index );
-
-        }
 
         const button = new VRButton( this.renderer, onSessionStart, onSessionEnd );
         
@@ -124,7 +115,6 @@ class App{
 
         // controller
         this.controller = this.renderer.xr.getController( 0 );
-        this.controller.addEventListener( 'selectstart', onSelectStart );
         this.scene.add( this.controller );
                 
         this.controllerGrip = this.renderer.xr.getControllerGrip( 0 );
@@ -133,7 +123,6 @@ class App{
         
         // controller
         this.controller1 = this.renderer.xr.getController( 1 );
-        this.controller1.addEventListener( 'selectstart', onSelectStart );
         this.scene.add( this.controller1 );
 
         this.controllerGrip1 = this.renderer.xr.getControllerGrip( 1 );
@@ -145,7 +134,7 @@ class App{
 
         const line = new THREE.Line( geometry );
         line.name = 'line';
-		line.scale.z = 0;
+		line.scale.z = 10;
 
         this.controller.add( line.clone() );
         this.controller1.add( line.clone() );
@@ -153,23 +142,6 @@ class App{
         this.selectPressed = false;
         
         this.renderer.setAnimationLoop( this.render.bind(this) );
-    }
-    
-    handleController( controller, index ){
-        this.workingMatrix.identity().extractRotation( controller.matrixWorld );
-
-        this.raycaster.ray.origin.setFromMatrixPosition( controller.matrixWorld );
-        this.raycaster.ray.direction.set( 0, 0, - 1 ).applyMatrix4( this.workingMatrix );
-
-        const intersects = this.raycaster.intersectObject( this.ui.mesh );
-
-        if (intersects.length>0){
-            this.ui.hover( index, intersects[0].point, index );
-            controller.children[0].scale.z = intersects[0].distance;
-        }else{
-            this.ui.hover( index );
-            controller.children[0].scale.z = 10;
-        }
     }
     
     resize(){
@@ -180,8 +152,6 @@ class App{
     
 	render( ) {   
         if ( this.renderer.xr.isPresenting ){
-            this.handleController( this.controller, 0 );
-            this.handleController( this.controller1, 1 );
             this.ui.update();
         }
         this.renderer.render( this.scene, this.camera );
