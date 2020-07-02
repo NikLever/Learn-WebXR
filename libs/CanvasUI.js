@@ -31,8 +31,7 @@ class CanvasUI{
                 padding:20, 
                 backgroundColor: '#000', 
                 fontColor:'#fff', 
-                borderRadius: 6,
-                opacity: 0.7
+                borderRadius: 6
             }
         }
 		this.config = (config===undefined) ? defaultconfig : config;
@@ -40,6 +39,14 @@ class CanvasUI{
         if (this.config.width === undefined) this.config.width = 512;
         if (this.config.height === undefined) this.config.height = 512;
         if (this.config.body === undefined) this.config.body = {fontFamily:'Arial', size:30, padding:20, backgroundColor: '#000', fontColor:'#fff', borderRadius: 6};
+        
+        const body = this.config.body;
+        if (body.borderRadius === undefined) body.borderRadius = 6;
+        if (body.fontFamily === undefined) body.fontFamily = "Arial";
+        if (body.padding === undefined) body.padding = 20;
+        if (body.fontSize === undefined) body.fontSize = 30;
+        if (body.backgroundColor === undefined) body.backgroundColor = '#000';
+        if (body.fontColor === undefined) body.fontColor = '#fff';
         
         Object.entries( this.config ).forEach( ( [ name, value]) => {
             if ( typeof(value) === 'object' && name !== 'panelSize' ){
@@ -58,6 +65,8 @@ class CanvasUI{
                 if (pos.y === undefined) pos.y = 0;
                 
                 value.position = pos;
+                
+                if (value.type === undefined) value.type = 'text';
             }
         })
         
@@ -391,6 +400,22 @@ class CanvasUI{
 		return canvas;
 	}
 	
+    fillRoundedRect( x, y, w, h, radius ){
+        const ctx = this.context;
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(x + w - radius, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+        ctx.lineTo(x + w, y + h - radius);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+        ctx.lineTo(x + radius, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+        ctx.closePath();
+        ctx.fill();
+    }
+    
 	wrapText(name, txt){
         //console.log( `wrapText: ${name}:${txt}`);
 		const words = txt.split(' ');
@@ -448,6 +473,39 @@ class CanvasUI{
 		});
 		
 		if (line != '') lines.push(line);
+        
+        const textHeight = lines.length * lineHeight;
+        if (textHeight>rect.height && config.overflow === 'scroll'){
+            //Show a scroll bar
+            if ( config.scrollY === undefined ) config.scrollY = 0;
+            const fontColor = ( config.fontColor !== undefined ) ? config.fontColor : this.config.body.fontColor;
+            context.fillStyle = "#aaa";
+            this.fillRoundedRect( pos.x + width - 12, pos.y, 12, height, 6 );
+            context.fillStyle = "#666";
+            const scale = rect.height / textHeight;
+            const thumbHeight = scale * height;
+            const thumbY = -config.scrollY * scale;
+            this.fillRoundedRect( pos.x + width - 12, pos.y + thumbY, 12, thumbHeight, 6);
+            context.fillStyle = fontColor;
+            
+            const self = this;
+            
+            function onSelectStart( event ){
+                
+            }
+            
+            function onSelectEnd( event ){
+                
+            }
+            
+            if ( this.controller === undefined ){
+                this.initControllers();
+                this.controller.addEventListener( 'selectstart', onSelectStart );
+                this.controller.addEventListener( 'selectend', onSelectEnd );
+                this.controller1.addEventListener( 'selectstart', onSelectStart );
+                this.controller1.addEventListener( 'selectend', onSelectEnd );
+            }
+        }
 		
 		let y = rect.y + fontSize/2;
 		let x;
