@@ -139,7 +139,7 @@ class App{
             self.camera.remove( self.ui.mesh );
         }
 
-        const btn = new ARButton( this.renderer, onSessionStart, onSessionEnd );
+        const btn = new ARButton( this.renderer, { onSessionStart, onSessionEnd } );
         
         const controller = this.renderer.xr.getController( 0 );
         controller.addEventListener( 'connected', onConnected );

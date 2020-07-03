@@ -34,7 +34,7 @@ class App{
 		this.renderer.xr.enabled = true;
 		container.appendChild( this.renderer.domElement );
 		
-        const btn = new ARButton( this.renderer, null, null, { requiredFeatures: [ 'hit-test' ], optionalFeatures: [ 'dom-overlay' ] } )
+        const btn = new ARButton( this.renderer, { sessionInit: { requiredFeatures: [ 'hit-test' ], optionalFeatures: [ 'dom-overlay' ], domOverlay: { root: document.body } } } );
         
         const self = this;
 

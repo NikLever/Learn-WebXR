@@ -6,11 +6,14 @@
 
 class ARButton{
 
-	constructor( renderer, onSessionStart, onSessionEnd, sessionInit = {} ) {
+	constructor( renderer, options ) {
         this.renderer = renderer;
-        this.sessionInit = sessionInit;
-        this.onSessionStart = onSessionStart;
-        this.onSessionEnd = onSessionEnd;
+        
+        if (options !== undefined){
+            this.onSessionStart = options.onSessionStart;
+            this.onSessionEnd = options.onSessionEnd;
+            this.sessionInit = options.sessionInit;
+        }
         
         if ( 'xr' in navigator ) {
 
@@ -128,7 +131,7 @@ class ARButton{
                 // ('local' is always available for immersive sessions and doesn't need to
                 // be requested separately.)
                 
-                navigator.xr.requestSession( 'immersive-ar', this.sessionInit ).then( onSessionStarted );
+                navigator.xr.requestSession( 'immersive-ar', self.sessionInit ).then( onSessionStarted );
 
             } else {
 
