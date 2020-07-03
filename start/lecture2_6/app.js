@@ -1,8 +1,10 @@
 import * as THREE from '../../libs/three/three.module.js';
 import { GLTFLoader } from '../../libs/three/jsm/GLTFLoader.js';
-import { FBXLoader } from '../../libs/three/jsm/FBXLoader.js'
+import { FBXLoader } from '../../libs/three/jsm/FBXLoader.js';
+import { RGBELoader } from '../../libs/three/jsm/RGBELoader.js';
 import { OrbitControls } from '../../libs/three/jsm/OrbitControls.js';
 import { LoadingBar } from '../../libs/LoadingBar.js';
+import { vector3ToString } from '../../libs/DebugUtils.js';
 
 class App{
 	constructor(){
@@ -19,16 +21,20 @@ class App{
 		this.scene.add(ambient);
         
         const light = new THREE.DirectionalLight();
-        light.position.set( 0.2, 1, 1);
+        light.position.set( 0.2, 1, 1.5);
         this.scene.add(light);
 			
 		this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true } );
 		this.renderer.setPixelRatio( window.devicePixelRatio );
 		this.renderer.setSize( window.innerWidth, window.innerHeight );
         this.renderer.outputEncoding = THREE.sRGBEncoding;
+        this.renderer.physicallyCorrectLights = true;
+        this.setEnvironment();
 		container.appendChild( this.renderer.domElement );
 		
         //Add code here
+        this.loadingBar = new LoadingBar();
+        this.loadGLTF();
         
         this.controls = new OrbitControls( this.camera, this.renderer.domElement );
         this.controls.target.set(0, 3.5, 0);
@@ -37,12 +43,65 @@ class App{
         window.addEventListener('resize', this.resize.bind(this) );
 	}	
     
-    loadGLTF(){
+    setEnvironment(){
+        const loader = new RGBELoader().setDataType( THREE.UnsignedByteType );
+        const pmremGenerator = new THREE.PMREMGenerator( this.renderer );
+        pmremGenerator.compileEquirectangularShader();
         
+        const self = this;
+        
+        loader.load( '../../assets/hdr/venice_sunset_1k.hdr', ( texture ) => {
+          const envMap = pmremGenerator.fromEquirectangular( texture ).texture;
+          pmremGenerator.dispose();
+
+          self.scene.environment = envMap;
+
+        }, undefined, (err)=>{
+            console.error( 'An error occurred setting the environment');
+        } );
+    }
+    
+    loadGLTF(){
+        const self = this;
+        const loader = new GLTFLoader().setPath('../../assets/');
+        
+        loader.load(
+            'office-chair.glb',
+            function(gltf){
+                self.chair = gltf.scene;
+                //self.updateTextureEncoding(gltf.scene);
+                self.scene.add( gltf.scene );
+                self.loadingBar.visible = false;
+                self.renderer.setAnimationLoop( self.render.bind(self) );
+            },
+            function(xhr){
+                self.loadingBar.progress = xhr.loaded/xhr.total;
+            },
+            function(err){
+                console.log( 'An error happened' );
+            }
+        )
     }
     
     loadFBX(){
+        const self = this;
+        const loader = new FBXLoader().setPath('../../assets/');
         
+        loader.load(
+            'office-chair.fbx',
+            function(object){
+                self.chair = object;
+                self.scene.add( object );
+                self.loadingBar.visible = false;
+                self.renderer.setAnimationLoop( self.render.bind(self) );
+            },
+            function(xhr){
+                self.loadingBar.progress = xhr.loaded/xhr.total;
+            },
+            function(err){
+                console.log( 'An error happened' );
+            }
+        )
     }
     
     resize(){
