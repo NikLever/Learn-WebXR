@@ -111,8 +111,6 @@ class App{
         this.controllerGrip = this.renderer.xr.getControllerGrip( 0 );
         this.controllerGrip.add( controllerModelFactory.createControllerModel( this.controllerGrip ) );
         this.scene.add( this.controllerGrip );
-        
-        this.scene.add(this.highlight);
 
     }
     

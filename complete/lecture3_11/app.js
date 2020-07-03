@@ -139,7 +139,7 @@ class App{
             self.camera.remove( self.ui.mesh );
         }
         
-        const btn = new ARButton( this.renderer, onSessionStart, onSessionEnd );
+        const btn = new ARButton( this.renderer, { onSessionStart, onSessionEnd } );
         
         this.gestures = new ControllerGestures( this.renderer );
         this.gestures.addEventListener( 'tap', (ev)=>{

@@ -6,18 +6,26 @@
 
 class VRButton{
 
-	constructor( renderer, onSessionStart, onSessionEnd ) {
+	constructor( renderer, options ) {
         this.renderer = renderer;
-        this.onSessionStart = onSessionStart;
-        this.onSessionEnd = onSessionEnd;
+        if (options !== undefined){
+            this.onSessionStart = options.onSessionStart;
+            this.onSessionEnd = options.onSessionEnd;
+            this.sessionInit = options.sessionInit;
+            this.sessionMode = ( options.inline !== undefined && options.inline ) ? 'inline' : 'immersive-vr';
+        }else{
+            this.sessionMode = 'immersive-vr';
+        }
+        
+       if (this.sessionInit === undefined ) this.sessionInit = { optionalFeatures: [ 'local-floor', 'bounded-floor' ] };
         
         if ( 'xr' in navigator ) {
 
 			const button = document.createElement( 'button' );
 			button.style.display = 'none';
             button.style.height = '40px';
-
-			navigator.xr.isSessionSupported( 'immersive-vr' ).then( ( supported ) => {
+            
+			navigator.xr.isSessionSupported( this.sessionMode ).then( ( supported ) => {
 
 				supported ? this.showEnterVR( button ) : this.showWebXRNotFound( button );
 
@@ -126,8 +134,7 @@ class VRButton{
                 // ('local' is always available for immersive sessions and doesn't need to
                 // be requested separately.)
 
-                var sessionInit = { optionalFeatures: [ 'local-floor', 'bounded-floor' ] };
-                navigator.xr.requestSession( 'immersive-vr', sessionInit ).then( onSessionStarted );
+                navigator.xr.requestSession( self.sessionMode, self.sessionInit ).then( onSessionStarted );
 
             } else {
 
