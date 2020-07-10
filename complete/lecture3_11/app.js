@@ -39,6 +39,7 @@ class App{
         this.controls.update();
         
         this.stats = new Stats();
+        document.body.appendChild( this.stats.dom );
         
         this.origin = new THREE.Vector3();
         this.euler = new THREE.Euler();
@@ -111,7 +112,7 @@ class App{
     createUI() {
         
         const config = {
-            panelSize: { width: 0.2, height: 0.05 },
+            panelSize: { width: 0.15, height: 0.038 },
             height: 128,
             info:{ type: "text" }
         }
@@ -131,7 +132,7 @@ class App{
         let controller, controller1;
         
         function onSessionStart(){
-            self.ui.mesh.position.set( 0, -0.2, -0.3 );
+            self.ui.mesh.position.set( 0, -0.15, -0.3 );
             self.camera.add( self.ui.mesh );
         }
         
@@ -139,9 +140,14 @@ class App{
             self.camera.remove( self.ui.mesh );
         }
         
-        const btn = new ARButton( this.renderer, { onSessionStart, onSessionEnd } );
+        const btn = new ARButton( this.renderer, { onSessionStart, onSessionEnd, sessionInit: { optionalFeatures: [ 'dom-overlay' ], domOverlay: { root: document.body } } } );
         
-        this.gestures = new ControllerGestures( this.renderer );
+        this.gestures = new Hammer( this.renderer.domElement );
+        this.gestures.on('pan', function(ev) {
+            console.log(ev);
+            self.ui.updateElement( 'info', JSON.stringify(ev) );
+        });
+        /*this.gestures = new ControllerGestures( this.renderer );
         this.gestures.addEventListener( 'tap', (ev)=>{
             console.log( 'tap' ); 
             self.ui.updateElement('info', 'tap' );
@@ -196,7 +202,7 @@ class App{
                 self.knight.object.rotateY( ev.theta );
                 self.ui.updateElement('info', `rotate ${ev.theta.toFixed(3)}`  );
             }
-        });
+        });*/
         
         this.renderer.setAnimationLoop( this.render.bind(this) );
     }
@@ -211,7 +217,7 @@ class App{
         const dt = this.clock.getDelta();
         this.stats.update();
         if ( this.renderer.xr.isPresenting ){
-            this.gestures.update();
+            //this.gestures.update();
             this.ui.update();
         }
         if ( this.knight !== undefined ) this.knight.update(dt);

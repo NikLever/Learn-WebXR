@@ -1,5 +1,6 @@
 import * as THREE from '../../../libs/three/three.module.js';
 import { BoxLineGeometry } from '../../../libs/three/jsm/BoxLineGeometry.js';
+import { XRControllerModelFactory } from '../../../libs/three/jsm/XRControllerModelFactory.js';
 import { CanvasUI } from '../../../libs/CanvasUI.js'
 import { VRButton } from '../../../libs/VRButton.js';
 
@@ -29,7 +30,7 @@ class App{
 		container.appendChild( this.renderer.domElement );
         
         this.initScene();
-        this.setupVR();
+        this.setupXR();
         
         window.addEventListener('resize', this.resize.bind(this) );
 	}	
@@ -47,15 +48,18 @@ class App{
     
     createUI() {
         const config = {
-            body: { backgroundColor: "#fff", fontColor: "#000", overflow: "scroll"}
+            renderer: this.renderer,
+            scene: this.scene,
+            body: { backgroundColor: "#666" },
+            txt: { type: "text", overflow: "scroll", position: { left: 20, top: 20 }, width: 400, height: 400, backgroundColor: "#fff", fontColor: "#000" }
         }
         const content = {
-            body: "This is an example of a scrolling panel. Select it with a controller and move the controller while keeping the select button pressed. In an AR app just press and drag. If a panel is set to scroll and the overflow setting is 'scroll', then a scroll bar will appear when the panel is active. But to scroll you can just drag anywhere on the panel. This is an example of a scrolling panel. Select it with a controller and move the controller while keeping the select button pressed. In an AR app just press and drag. If a panel is set to scroll and the overflow setting is 'scroll', then a scroll bar will appear when the panel is active. But to scroll you can just drag anywhere on the panel."
+            txt: "This is an example of a scrolling panel. Select it with a controller and move the controller while keeping the select button pressed. In an AR app just press and drag. If a panel is set to scroll and the overflow setting is 'scroll', then a scroll bar will appear when the panel is active. But to scroll you can just drag anywhere on the panel. This is an example of a scrolling panel. Select it with a controller and move the controller while keeping the select button pressed. In an AR app just press and drag. If a panel is set to scroll and the overflow setting is 'scroll', then a scroll bar will appear when the panel is active. But to scroll you can just drag anywhere on the panel."
         }
         this.ui = new CanvasUI( content, config );
     }
     
-    setupVR(){
+    setupXR(){
         this.renderer.xr.enabled = true; 
         
         const self = this;
@@ -69,7 +73,7 @@ class App{
             self.camera.remove( self.ui.mesh );
         }
         
-        const btn = new VRButton( this.renderer, onSessionStart, onSessionEnd );
+        const btn = new VRButton( this.renderer, { onSessionStart, onSessionEnd } );
         
         const controllerModelFactory = new XRControllerModelFactory();
 

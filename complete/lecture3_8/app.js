@@ -44,6 +44,7 @@ class App{
         this.controls.update();
         
         this.stats = new Stats();
+        document.body.appendChild( this.stats.dom );
         
         this.initScene();
         this.setupVR();
