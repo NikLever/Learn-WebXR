@@ -43,7 +43,7 @@ class App{
         this.workingVector = new THREE.Vector3();
         
         this.initScene();
-        this.setupVR();
+        this.setupXR();
         
         window.addEventListener('resize', this.resize.bind(this) );
         
@@ -79,43 +79,59 @@ class App{
         }
     }
     
-    setupVR(){
+    setupXR(){
         this.renderer.xr.enabled = true;
         
         const button = new VRButton( this.renderer );
         
         const self = this;
         
+        function onSelectStart( event ) {
+        
+            this.userData.selectPressed = true;
+        
+        }
+
+        function onSelectEnd( event ) {
+        
+            this.userData.selectPressed = false;
+        
+        }
+        
+        // controller 0
         this.controller = this.renderer.xr.getController( 0 );
-        this.controller.addEventListener( 'connected', function ( event ) {
-
-            const mesh = self.buildController.call(self, event.data );
-
-        } );
-        this.controller.addEventListener( 'disconnected', function () {
-
-            this.remove( this.children[ 0 ] );
-            self.controller = null;
-            self.controllerGrip = null;
-
-        } );
+        this.controller.addEventListener( 'selectstart', onSelectStart );
+        this.controller.addEventListener( 'selectend', onSelectEnd );
         this.scene.add( this.controller );
-
-        // The XRControllerModelFactory will automatically fetch controller models
-        // that match what the user is holding as closely as possible. The models
-        // should be attached to the object returned from getControllerGrip in
-        // order to match the orientation of the held device.
 
         const controllerModelFactory = new XRControllerModelFactory();
 
         this.controllerGrip = this.renderer.xr.getControllerGrip( 0 );
         this.controllerGrip.add( controllerModelFactory.createControllerModel( this.controllerGrip ) );
         this.scene.add( this.controllerGrip );
-
-    }
-    
-    buildController( data ) {
         
+        // controller 1
+        this.controller1 = this.renderer.xr.getController( 1 );
+        this.controller1.addEventListener( 'selectstart', onSelectStart );
+        this.controller1.addEventListener( 'selectend', onSelectEnd );
+        this.scene.add( this.controller1 );
+
+        this.controllerGrip1 = this.renderer.xr.getControllerGrip( 1 );
+        this.controllerGrip1.add( controllerModelFactory.createControllerModel( this.controllerGrip1 ) );
+        this.scene.add( this.controllerGrip1 );
+        
+        //
+        const geometry = new THREE.BufferGeometry().setFromPoints( [ new THREE.Vector3( 0, 0, 0 ), new THREE.Vector3( 0, 0, - 1 ) ] );
+
+        const line = new THREE.Line( geometry );
+        line.name = 'line';
+		line.scale.z = 10;
+
+        this.controller.add( line.clone() );
+        this.controller1.add( line.clone() );
+        
+        this.controller.userData.selectPressed = false;
+        this.controller1.userData.selectPressed = false;
 
     }
     
@@ -132,6 +148,8 @@ class App{
 	render( ) {   
         this.stats.update();
         if (this.controller ) this.handleController( this.controller );
+        if (this.controller1 ) this.handleController( this.controller1 );
+        
         this.renderer.render( this.scene, this.camera );
     }
 }
