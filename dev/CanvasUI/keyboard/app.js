@@ -1,5 +1,6 @@
 import * as THREE from '../../../libs/three/three.module.js';
 import { BoxLineGeometry } from '../../../libs/three/jsm/BoxLineGeometry.js';
+import { XRControllerModelFactory } from '../../../libs/three/jsm/XRControllerModelFactory.js';
 import { CanvasUI } from '../../../libs/CanvasUI.js'
 import { VRButton } from '../../../libs/VRButton.js';
 
@@ -29,7 +30,7 @@ class App{
 		container.appendChild( this.renderer.domElement );
         
         this.initScene();
-        this.setupVR();
+        this.setupXR();
         
         window.addEventListener('resize', this.resize.bind(this) );
 	}	
@@ -46,25 +47,71 @@ class App{
     }
     
     createUI() {
-        this.ui = new CanvasUI(  );
-        this.ui.updateElement("body", "Hello World" );
+        function onChanged( txt ){
+            console.log( `message changed: ${txt}`);
+        }
+        
+        function onEnter( txt ){
+            console.log(`message enter: ${txt}`);
+        }
+        
+        const config = {
+            renderer: this.renderer,
+            panelSize: { width: 1.6, height: 0.4 },
+            height: 128,
+            message: { type: "input-text", position: { left: 10, top: 8 }, height: 56, width: 492, backgroundColor: "#ccc", fontColor: "#000", onChanged, onEnter },
+            label: { type: "text", position: { top: 64 }}
+        }
+        const content = {
+            message: "",
+            label: "Select the panel above."
+        }
+        this.ui = new CanvasUI( content, config );
     }
     
-    setupVR(){
+    setupXR(){
         this.renderer.xr.enabled = true; 
         
         const self = this;
         
         function onSessionStart(){
-            self.ui.mesh.position.set( 0, 1.5, -1.2 );
-            self.camera.attach( self.ui.mesh );
+            self.ui.mesh.position.set( 0, 1.5, -2 );
+            self.scene.add( self.ui.mesh );
         }
         
         function onSessionEnd(){
-            self.camera.remove( self.ui.mesh );
+            self.scene.remove( self.ui.mesh );
         }
         
-        const btn = new VRButton( this.renderer, onSessionStart, onSessionEnd );
+        const btn = new VRButton( this.renderer, { onSessionStart, onSessionEnd } );
+        
+        const controllerModelFactory = new XRControllerModelFactory();
+
+        // controller
+        this.controller = this.renderer.xr.getController( 0 );
+        this.scene.add( this.controller );
+                
+        this.controllerGrip = this.renderer.xr.getControllerGrip( 0 );
+        this.controllerGrip.add( controllerModelFactory.createControllerModel( this.controllerGrip ) );
+        this.scene.add( this.controllerGrip );
+        
+        // controller
+        this.controller1 = this.renderer.xr.getController( 1 );
+        this.scene.add( this.controller1 );
+
+        this.controllerGrip1 = this.renderer.xr.getControllerGrip( 1 );
+        this.controllerGrip1.add( controllerModelFactory.createControllerModel( this.controllerGrip1 ) );
+        this.scene.add( this.controllerGrip1 );
+        
+        //
+        const geometry = new THREE.BufferGeometry().setFromPoints( [ new THREE.Vector3( 0, 0, 0 ), new THREE.Vector3( 0, 0, - 1 ) ] );
+
+        const line = new THREE.Line( geometry );
+        line.name = 'line';
+		line.scale.z = 10;
+
+        this.controller.add( line.clone() );
+        this.controller1.add( line.clone() );
         
         this.renderer.setAnimationLoop( this.render.bind(this) );
     }

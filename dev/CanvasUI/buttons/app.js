@@ -30,7 +30,7 @@ class App{
 		container.appendChild( this.renderer.domElement );
         
         this.initScene();
-        this.setupVR();
+        this.setupXR();
         
         window.addEventListener('resize', this.resize.bind(this) );
 	}	
@@ -93,7 +93,7 @@ class App{
         this.ui = new CanvasUI( content, config );
     }
     
-    setupVR(){
+    setupXR(){
         this.renderer.xr.enabled = true; 
         
         const self = this;
@@ -107,10 +107,8 @@ class App{
             self.scene.remove( self.ui.mesh );
         }
         
-        const btn = new VRButton( this.renderer, onSessionStart, onSessionEnd );
+        const btn = new VRButton( this.renderer, { onSessionStart, onSessionEnd } );
 
-        const button = new VRButton( this.renderer, onSessionStart, onSessionEnd );
-        
         const controllerModelFactory = new XRControllerModelFactory();
 
         // controller

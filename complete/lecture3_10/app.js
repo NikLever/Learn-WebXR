@@ -43,13 +43,14 @@ class App{
         this.controls.update();
         
         this.stats = new Stats();
+        document.body.appendChild( this.stats.dom );
         
         this.origin = new THREE.Vector3();
         this.quaternion = new THREE.Quaternion();
         this.euler = new THREE.Euler();
         
         this.initScene();
-        this.setupVR();
+        this.setupXR();
         
         window.addEventListener('resize', this.resize.bind(this) );
 	}	
@@ -100,7 +101,7 @@ class App{
         this.ui = ui;
     }
     
-    setupVR(){
+    setupXR(){
         this.renderer.xr.enabled = true; 
         
         const self = this;
@@ -139,7 +140,7 @@ class App{
             self.camera.remove( self.ui.mesh );
         }
 
-        const btn = new ARButton( this.renderer, { onSessionStart, onSessionEnd } );
+        const btn = new ARButton( this.renderer, { onSessionStart, onSessionEnd, sessionInit: { optionalFeatures: [ 'dom-overlay' ], domOverlay: { root: document.body } } } ); 
         
         const controller = this.renderer.xr.getController( 0 );
         controller.addEventListener( 'connected', onConnected );

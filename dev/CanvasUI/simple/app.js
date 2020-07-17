@@ -29,7 +29,7 @@ class App{
 		container.appendChild( this.renderer.domElement );
         
         this.initScene();
-        this.setupVR();
+        this.setupXR();
         
         window.addEventListener('resize', this.resize.bind(this) );
 	}	
@@ -50,7 +50,7 @@ class App{
         this.ui.updateElement("body", "Hello World" );
     }
     
-    setupVR(){
+    setupXR(){
         this.renderer.xr.enabled = true; 
         
         const self = this;
@@ -64,7 +64,7 @@ class App{
             self.camera.remove( self.ui.mesh );
         }
         
-        const btn = new VRButton( this.renderer, onSessionStart, onSessionEnd );
+        const btn = new VRButton( this.renderer, { onSessionStart, onSessionEnd } );
         
         this.renderer.setAnimationLoop( this.render.bind(this) );
     }
