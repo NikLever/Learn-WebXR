@@ -28,7 +28,7 @@ class VRButton{
 			navigator.xr.isSessionSupported( this.sessionMode ).then( ( supported ) => {
 
 				supported ? this.showEnterVR( button ) : this.showWebXRNotFound( button );
-                if (options.vrStatus) options.vrStatus( supported );
+                if (options && options.vrStatus) options.vrStatus( supported );
                 
 			} );
             
