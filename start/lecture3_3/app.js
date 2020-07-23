@@ -37,12 +37,14 @@ class App{
         this.controls.update();
         
         this.stats = new Stats();
+        document.body.appendChild( this.stats.dom );
         
         this.raycaster = new THREE.Raycaster();
         this.workingMatrix = new THREE.Matrix4();
+        this.workingVector = new THREE.Vector3();
         
         this.initScene();
-        this.setupVR();
+        this.setupXR();
         
         window.addEventListener('resize', this.resize.bind(this) );
         
@@ -78,15 +80,13 @@ class App{
         }
     }
     
-    setupVR(){
+    setupXR(){
         this.renderer.xr.enabled = true;
         
         const button = new VRButton( this.renderer );
-        
-        const self = this;
     }
     
-    buildController( data ) {
+    buildControllers(){
         
     }
     
@@ -102,7 +102,14 @@ class App{
     
 	render( ) {   
         this.stats.update();
-        if (this.controller ) this.handleController( this.controller );
+        
+        if (this.controllers ){
+            const self = this;
+            this.controllers.forEach( ( controller) => { 
+                self.handleController( controller ) 
+            });
+        }
+        
         this.renderer.render( this.scene, this.camera );
     }
 }

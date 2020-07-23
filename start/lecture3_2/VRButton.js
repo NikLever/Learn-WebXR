@@ -10,21 +10,15 @@ class VRButton{
         this.renderer = renderer;
         
         if ( 'xr' in navigator ) {
-
-			const button = document.createElement( 'button' );
-            document.body.appendChild( button );
-
+            
 		} else {
-
-			const message = document.createElement( 'a' );
-            document.body.appendChild ( message );
-
+            
 		}
 
     }
 
 	showEnterVR( button ) {
-        
+    
     }
 
     disableButton( button ) {
@@ -39,18 +33,18 @@ class VRButton{
 
     }
 
-    showWebXRNotFound( button ) {
-
+    showWebXRNotFound( button ) { 
+    
     }
 
-    stylizeElement( element, active = true, fontSize = 13, ignorePadding = false ) {
+    stylizeElement( element, green = true, fontSize = 13, ignorePadding = false ) {
 
         element.style.position = 'absolute';
         element.style.bottom = '20px';
         if (!ignorePadding) element.style.padding = '12px 6px';
         element.style.border = '1px solid #fff';
         element.style.borderRadius = '4px';
-        element.style.background = (active) ? 'rgba(20,150,80,1)' : 'rgba(180,20,20,1)';
+        element.style.background = (green) ? 'rgba(20,150,80,1)' : 'rgba(180,20,20,1)';
         element.style.color = '#fff';
         element.style.font = `normal ${fontSize}px sans-serif`;
         element.style.textAlign = 'center';
