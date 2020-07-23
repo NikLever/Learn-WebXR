@@ -28,7 +28,8 @@ class VRButton{
 			navigator.xr.isSessionSupported( this.sessionMode ).then( ( supported ) => {
 
 				supported ? this.showEnterVR( button ) : this.showWebXRNotFound( button );
-
+                if (options.vrStatus) options.vrStatus( supported );
+                
 			} );
             
             document.body.appendChild( button );
@@ -58,6 +59,8 @@ class VRButton{
             message.style.opacity = '1';
             
             document.body.appendChild ( message );
+            
+            if (options.vrStatus) options.vrStatus( false );
 
 		}
 
@@ -171,6 +174,8 @@ class VRButton{
         button.style.opacity = '1';
         button.style.fontSize = '13px';
         button.textContent = 'VR NOT SUPPORTED';
+        
+        
 
     }
 

@@ -7,6 +7,7 @@ import { Mesh,
         Scene, 
         WebGLRenderer, 
         Vector3, 
+        Quaternion,
         IcosahedronBufferGeometry 
        } from './three/three.module.js';
 import { CanvasKeyboard } from './CanvasKeyboard.js';
@@ -539,6 +540,54 @@ class CanvasUI{
         ctx.quadraticCurveTo(x, y, x + radius, y);
         ctx.closePath();
         ctx.fill();
+    }
+    
+    lookAt( pos ){
+        if ( this.mesh === undefined ) return;
+        if ( !(pos instanceof Vector3) ){
+            console.error( 'CanvasUI lookAt called parameter not a THREE.Vector3');
+            return;
+        }
+        this.mesh.lookAt( pos );
+    }
+    
+    get visible(){
+        if (this.mesh === undefined ) return false;
+        return this.mesh.visible;
+    }
+    
+    set visible(value){
+        if (this.mesh){
+            this.mesh.visible = value;
+        }
+    }
+    
+    get position(){
+        if (this.mesh === undefined) return undefined;
+        return this.mesh.position;
+    }
+    
+    set position(value){
+        if (this.mesh === undefined) return;
+        if (!(value instanceof Vector3) ){
+            console.error( 'CanvasUI trying to set the mesh position using a parameter that is not a THREE.Vector3');
+            return;
+        }
+        this.mesh.position.copy( value );
+    }
+    
+    get quaternion(){
+        if (this.mesh === undefined) return undefined;
+        return this.mesh.quaternion;
+    }
+    
+    set quaternion(value){
+        if (this.mesh === undefined) return;
+        if (!(value instanceof QUaternion) ){
+            console.error( 'CanvasUI trying to set the mesh quaternion using a parameter that is not a THREE.Quaternion');
+            return;
+        }
+        this.mesh.quaternion.copy( value );
     }
     
 	wrapText(name, txt){

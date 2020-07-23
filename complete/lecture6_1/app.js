@@ -1,6 +1,7 @@
 
 import * as THREE from '../../libs/three/three.module.js';
 import { GLTFLoader } from '../../libs/three/jsm/GLTFLoader.js';
+import { DRACOLoader } from '../../libs/three/jsm/DRACOLoader.js';
 import { RGBELoader } from '../../libs/three/jsm/RGBELoader.js';
 import { Stats } from '../../libs/stats.module.js';
 import { LoadingBar } from '../../libs/LoadingBar.js';
@@ -78,16 +79,20 @@ class App{
 	loadCollege(){
         
 		const loader = new GLTFLoader( ).setPath(this.assetsPath);
+        const dracoLoader = new DRACOLoader();
+        dracoLoader.setDecoderPath( '../../libs/three/js/draco/' );
+        loader.setDRACOLoader( dracoLoader );
+        
         const self = this;
 		
 		// Load a glTF resource
 		loader.load(
 			// resource URL
-			'college.glb',
+			'college2.glb',
 			// called when the resource is loaded
 			function ( gltf ) {
 
-                const college = gltf.scene.children[2];
+                const college = gltf.scene.children[0];
 				self.scene.add( college );
 				
 				college.traverse(function (child) {
@@ -96,14 +101,13 @@ class App{
 							child.material.visible = false;
 							self.proxy = child;
 						}else if (child.material.name.indexOf('Glass')!=-1){
+                            child.material.opacity = 0.1;
                             child.material.transparent = true;
                         }else if (child.material.name.indexOf("SkyBox")!=-1){
                             const mat1 = child.material;
                             const mat2 = new THREE.MeshBasicMaterial({map: mat1.map});
                             child.material = mat2;
                             mat1.dispose();
-                        }else{
-                           //child.material.metalness = 0;  
                         }
 					}
 				});
@@ -130,6 +134,8 @@ class App{
     setupXR(){
         this.renderer.xr.enabled = true;
 
+        const btn = new VRButton( this.renderer );
+        
         const self = this;
         
         function onSelectStart( event ) {
@@ -144,44 +150,39 @@ class App{
         
         }
         
-        const btn = new VRButton( this.renderer );
+        this.controllers = this.buildControllers( this.dolly );
         
-        // controller
-        this.controller = this.renderer.xr.getController( 0 );
-        this.controller.addEventListener( 'selectstart', onSelectStart );
-        this.controller.addEventListener( 'selectend', onSelectEnd );
-        this.dolly.add( this.controller );
-
-        const controllerModelFactory = new XRControllerModelFactory();
-
-        this.controllerGrip = this.renderer.xr.getControllerGrip( 0 );
-        this.controllerGrip.add( controllerModelFactory.createControllerModel( this.controllerGrip ) );
-        this.dolly.add( this.controllerGrip );
-        
-        // controller
-        this.controller1 = this.renderer.xr.getController( 1 );
-        this.controller1.addEventListener( 'selectstart', onSelectStart );
-        this.controller1.addEventListener( 'selectend', onSelectEnd );
-        this.dolly.add( this.controller1 );
-
-        this.controllerGrip1 = this.renderer.xr.getControllerGrip( 1 );
-        this.controllerGrip1.add( controllerModelFactory.createControllerModel( this.controllerGrip1 ) );
-        this.dolly.add( this.controllerGrip1 );
-        
-        //
-        const geometry = new THREE.BufferGeometry().setFromPoints( [ new THREE.Vector3( 0, 0, 0 ), new THREE.Vector3( 0, 0, - 1 ) ] );
-
-        const line = new THREE.Line( geometry );
-        line.name = 'line';
-		line.scale.z = 0;
-
-        this.controller.add( line.clone() );
-        this.controller1.add( line.clone() );
-        
-        this.controller.userData.selectPressed = false;
-        this.controller1.userData.selectPressed = false;
+        this.controllers.forEach( ( controller ) =>{
+            controller.addEventListener( 'selectstart', onSelectStart );
+            controller.addEventListener( 'selectend', onSelectEnd );
+        });
         
         this.renderer.setAnimationLoop( this.render.bind(this) );
+    }
+    
+    buildControllers( parent = this.scene ){
+        const controllerModelFactory = new XRControllerModelFactory();
+
+        const geometry = new THREE.BufferGeometry().setFromPoints( [ new THREE.Vector3( 0, 0, 0 ), new THREE.Vector3( 0, 0, -1 ) ] );
+
+        const line = new THREE.Line( geometry );
+        line.scale.z = 0;
+        
+        const controllers = [];
+        
+        for(let i=0; i<=1; i++){
+            const controller = this.renderer.xr.getController( i );
+            controller.add( line.clone() );
+            controller.userData.selectPressed = false;
+            parent.add( controller );
+            controllers.push( controller );
+            
+            const grip = this.renderer.xr.getControllerGrip( i );
+            grip.add( controllerModelFactory.createControllerModel( grip ) );
+            parent.add( grip );
+        }
+        
+        return controllers;
     }
     
     moveDolly(dt){
@@ -250,7 +251,7 @@ class App{
 	}
 		
     get selectPressed(){
-        return ( this.controller.userData.selectPressed || this.controller1.userData.selectPressed );    
+        return ( this.controllers !== undefined && (this.controllers[0].userData.selectPressed || this.controllers[1].userData.selectPressed) );    
     }
     
 	render( timestamp, frame ){
