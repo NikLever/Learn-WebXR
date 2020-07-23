@@ -1,5 +1,6 @@
 import * as THREE from '../../libs/three/three.module.js';
 import { VRButton } from '../../libs/VRButton.js';
+import { CanvasUI } from '../../libs/CanvasUI.js';
 import { XRControllerModelFactory } from '../../libs/three/jsm/XRControllerModelFactory.js';
 import { BoxLineGeometry } from '../../libs/three/jsm/BoxLineGeometry.js';
 import { Stats } from '../../libs/stats.module.js';
@@ -44,13 +45,14 @@ class App{
         this.controls.update();
         
         this.stats = new Stats();
+        document.body.appendChild( this.stats.dom );
         
         this.raycaster = new THREE.Raycaster();
         this.workingMatrix = new THREE.Matrix4();
         this.workingVector = new THREE.Vector3();
         
         this.initScene();
-        this.setupVR();
+        this.setupXR();
         
         window.addEventListener('resize', this.resize.bind(this) );
         
@@ -87,34 +89,16 @@ class App{
         
         this.highlight = new THREE.Mesh( geometry, new THREE.MeshBasicMaterial( { color: 0xffffff, side: THREE.BackSide } ) );
         this.highlight.scale.set(1.2, 1.2, 1.2);
+        this.scene.add(this.highlight);
         
-        this.gui = this.createTextPanel();
+        this.ui = this.createUI();
     }
     
-    createTextPanel(){
-         const container = ThreeMeshUI.Block({
-            width: 1.2,
-            height: 0.5,
-            padding: 0.05,
-            justifyContent: 'center',
-            alignContent: 'left',
-            fontFamily: '../../assets/fonts/roboto/Roboto-msdf.json',
-            fontTexture: '../../assets/fonts/roboto/Roboto-msdf.png'
-        });
-
-	    container.position.set( 0, 1, -1.8 );
-	    container.rotation.x = -0.55;
-        
-        this.guiText = ThreeMeshUI.Text({
-                content: "This will display debugging information",
-                fontSize: 0.055
-            });
-
-        container.add( this.guiText );
-        
-        this.scene.add( container );
-        
-        return container;
+    createUI(){
+        const ui = new CanvasUI();
+        ui.mesh.position.set(0, 0, -1);
+        this.scene.add( ui.mesh );
+        return ui;
     }
     
     //{"trigger":{"button":0},"touchpad":{"button":2,"xAxis":0,"yAxis":1}},"squeeze":{"button":1},"thumbstick":{"button":3,"xAxis":2,"yAxis":3},"button":{"button":6}}}
@@ -145,9 +129,9 @@ class App{
         
     }
     
-    updateGUI(){
-        this.guiText.set( { content: JSON.stringify( this.buttonStates )});
-        ThreeMeshUI.update();    
+    updateUI(){
+        this.ui.updateElement( 'body', JSON.stringify( this.buttonStates ) );
+        this.ui.update();    
     }
     
     updateGamepadState(){
@@ -155,7 +139,7 @@ class App{
         
         const inputSource = session.inputSources[0];
         
-        if (inputSource && inputSource.gamepad && this.gamepadIndices && this.gui && this.buttonStates){
+        if (inputSource && inputSource.gamepad && this.gamepadIndices && this.ui && this.buttonStates){
             const gamepad = inputSource.gamepad;
             try{
                 Object.entries( this.buttonStates ).forEach( ( [ key, value ] ) => {
@@ -170,25 +154,22 @@ class App{
                         this.buttonStates[key] = gamepad.buttons[buttonIndex].value;
                     }
                     
-                    this.updateGUI();
+                    this.updateUI();
                 });
             }catch(e){
-                console.warn("An error occurred setting the gui");
+                console.warn("An error occurred setting the ui");
             }
         }
     }
     
-    setupVR(){
+    setupXR(){
         this.renderer.xr.enabled = true;
         
         const button = new VRButton( this.renderer );
-        
-        this.controllerModelFactory = new XRControllerModelFactory();
-        
+
         const self = this;
         
-        this.controller = this.renderer.xr.getController( 0 );
-        this.controller.addEventListener( 'connected', function ( event ) {
+        function onConnected( event ){
             const info = {};
             
             fetchProfile( event.data, DEFAULT_PROFILES_PATH, DEFAULT_PROFILE ).then( ( { profile, assetPath } ) => {
@@ -212,16 +193,22 @@ class App{
                 self.updateControllers( info );
 
             } );
-            
-        });
-        this.controller.addEventListener( 'disconnected', (event) => {
-            while( self.controller.children.length > 0) self.controller.remove( self.controller.children[0] );
-            self.controller = null;
-            self.controllerGrip = null;
-            while( self.controller1.children.length > 0) self.controller1.remove( self.controller1.children[0] );
-            self.controller1 = null;
-            self.controllerGrip1 = null;
-        })
+        }
+                                                                                    
+        function onDisconnected( event ){
+            const controller = event.target;
+            while( controller.children.length > 0) controller.remove(     controller.children[0] );
+            controller = null;        
+        }
+        
+        this.controllers = this.buildControllers();
+        
+        this.controllers[0].addEventListener( 'connected', onConnected );
+        this.controllers[0].addEventListener( 'disconnected', onDisconnected)
+    }
+    
+    buildController( controller ){
+        const controllerModelFactory 
         this.scene.add( this.controller );
         
         this.controllerGrip = this.renderer.xr.getControllerGrip( 0 );
@@ -235,7 +222,7 @@ class App{
         this.controllerGrip1.add( this.controllerModelFactory.createControllerModel( this.controllerGrip1 ));
         this.scene.add( this.controllerGrip1 );
         
-        this.scene.add(this.highlight);
+        
 
     }
     
@@ -331,8 +318,13 @@ class App{
     }
     
 	render( ) {   
+        const self = this; 
         this.stats.update();
-        if (this.controller ) this.handleController( this.controller );
+        if (this.controllers ){
+            this.controllers.forEach( ( controller ) => {
+                self.handleController( controller );
+            })  
+        } 
         if (this.renderer.xr.isPresenting) this.updateGamepadState();
         this.renderer.render( this.scene, this.camera );
     }
