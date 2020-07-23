@@ -76,13 +76,11 @@ class App{
             object.position.z = this.random( -2, 2 );
 
             this.room.add( object );
-            
-            this.scene.add(this.highlight);
-
         }
         
         this.highlight = new THREE.Mesh( geometry, new THREE.MeshBasicMaterial( { color: 0xffffff, side: THREE.BackSide } ) );
         this.highlight.scale.set(1.2, 1.2, 1.2);
+        this.scene.add(this.highlight);
     }
     
     setupXR(){

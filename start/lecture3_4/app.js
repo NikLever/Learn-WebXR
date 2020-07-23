@@ -75,8 +75,8 @@ class App{
             object.position.z = this.random( -2, 2 );
 
             this.room.add( object );
-
         }
+        
     }
     
     setupXR(){
@@ -85,6 +85,7 @@ class App{
         const button = new VRButton( this.renderer );
         
         this.controllers = this.buildControllers();
+        
     }
     
     buildControllers(){

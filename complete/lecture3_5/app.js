@@ -44,7 +44,7 @@ class App{
         this.workingVector = new THREE.Vector3();
         
         this.initScene();
-        this.setupVR();
+        this.setupXR();
         
         window.addEventListener('resize', this.resize.bind(this) );
         
@@ -83,7 +83,7 @@ class App{
         this.highlight.scale.set(1.2, 1.2, 1.2);
     }
     
-    setupVR(){
+    setupXR(){
         this.renderer.xr.enabled = true;
         
         const button = new VRButton( this.renderer );
@@ -103,6 +103,7 @@ class App{
             if (self.spotlight) self.spotlight.visible = false;
             
         }
+        
         
         this.controller = this.renderer.xr.getController( 0 );
         this.controller.addEventListener( 'selectstart', onSelectStart );
@@ -137,7 +138,10 @@ class App{
         
                 loader.load( 'flash-light.glb',
                     ( gltf ) => {
-                        controller.add( gltf.scene );
+                        const flashLight = gltf.scene.children[2];
+                        const scale = 0.6;
+                        flashLight.scale.set(scale, scale, scale);
+                        controller.add( flashLight );
                         self.spotlight = new THREE.Group();
                         const spotlight = new THREE.SpotLight( 0xFFFFFF, 2, 12, Math.PI/15, 0.3 );
                         geometry = new THREE.CylinderBufferGeometry(0.03, 1, 5, 32, 5, true);
