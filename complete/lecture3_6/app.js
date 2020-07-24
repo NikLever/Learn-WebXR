@@ -95,8 +95,13 @@ class App{
     }
     
     createUI(){
-        const ui = new CanvasUI();
-        ui.mesh.position.set(0, 0, -1);
+        const config = {
+            panelSize: { height: 0.5 },
+            height: 256,
+            body: { type: "text" }
+        }
+        const ui = new CanvasUI( { body: "" }, config );
+        ui.mesh.position.set(0, 1.5, -1);
         this.scene.add( ui.mesh );
         return ui;
     }
@@ -104,29 +109,18 @@ class App{
     //{"trigger":{"button":0},"touchpad":{"button":2,"xAxis":0,"yAxis":1}},"squeeze":{"button":1},"thumbstick":{"button":3,"xAxis":2,"yAxis":3},"button":{"button":6}}}
     createButtonStates(components){
 
-        this.buttonStates = {};
+        const buttonStates = {};
         this.gamepadIndices = components;
         
-        if ( components.trigger !== undefined ){
-            this.buttonStates.trigger = 0;
-        }
+        Object.keys( components ).forEach( (key) => {
+            if ( key.indexOf('touchpad')!=-1 || key.indexOf('thumbstick')!=-1){
+                buttonStates[key] = { button: 0, xAxis: 0, yAxis: 0 };
+            }else{
+                buttonStates[key] = 0; 
+            }
+        })
         
-        if ( components.squeeze !== undefined ){
-            this.buttonStates.squeeze = 0;
-        }
-        
-        if ( components.button !== undefined ){
-            this.buttonStates.button = 0;
-        }
-        
-        if ( components.touchpad !== undefined ){
-            this.buttonStates.touchpad = { button: 0, xAxis: 0, yAxis: 0 };
-        }
-        
-        if ( components.thumbstick !== undefined ){
-            this.buttonStates.thumbstick = { button: 0, xAxis: 0, yAxis: 0 };
-        }
-        
+        this.buttonStates = buttonStates;
     }
     
     updateUI(){
@@ -144,7 +138,7 @@ class App{
             try{
                 Object.entries( this.buttonStates ).forEach( ( [ key, value ] ) => {
                     const buttonIndex = this.gamepadIndices[key].button;
-                    if ( key == 'touchpad' || key == 'thumbstick'){
+                    if ( key.indexOf('touchpad')!=-1 || key.indexOf('thumbstick')!=-1){
                         const xAxisIndex = this.gamepadIndices[key].xAxis;
                         const yAxisIndex = this.gamepadIndices[key].yAxis;
                         this.buttonStates[key].button = gamepad.buttons[buttonIndex].value; 
@@ -181,7 +175,7 @@ class App{
                 Object.entries( profile.layouts ).forEach( ( [key, layout] ) => {
                     const components = {};
                     Object.values( layout.components ).forEach( ( component ) => {
-                        components[component.type] = component.gamepadIndices;
+                        components[component.rootNodeName] = component.gamepadIndices;
                     });
                     info[key] = components;
                 });
@@ -194,39 +188,37 @@ class App{
 
             } );
         }
-                                                                                    
-        function onDisconnected( event ){
-            const controller = event.target;
-            while( controller.children.length > 0) controller.remove(     controller.children[0] );
-            controller = null;        
-        }
+                                                                                
+        const controller = this.renderer.xr.getController( 0 );
         
-        this.controllers = this.buildControllers();
-        
-        this.controllers[0].addEventListener( 'connected', onConnected );
-        this.controllers[0].addEventListener( 'disconnected', onDisconnected)
+        controller.addEventListener( 'connected', onConnected );
     }
     
-    buildController( controller ){
-        const controllerModelFactory 
-        this.scene.add( this.controller );
+    buildController( index, line, modelFactory ){
+        const controller = this.renderer.xr.getController( index );
         
-        this.controllerGrip = this.renderer.xr.getControllerGrip( 0 );
-        this.controllerGrip.add( this.controllerModelFactory.createControllerModel( this.controllerGrip ));
-        this.scene.add( this.controllerGrip );
+        if (line) controller.add( line.clone() );
         
-        this.controller1 = this.renderer.xr.getController( 1 );
-        this.scene.add( this.controller1 );
+        this.scene.add( controller );
         
-        this.controllerGrip1 = this.renderer.xr.getControllerGrip( 1 );
-        this.controllerGrip1.add( this.controllerModelFactory.createControllerModel( this.controllerGrip1 ));
-        this.scene.add( this.controllerGrip1 );
+        let grip;
         
+        if ( modelFactory ){
+            grip = this.renderer.xr.getControllerGrip( index );
+            grip.add( modelFactory.createControllerModel( grip ));
+            this.scene.add( grip );
+        }
         
-
+        return { controller, grip };
     }
     
     updateControllers(info){
+        const modelFactory = new XRControllerModelFactory();
+        
+        const geometry = new THREE.BufferGeometry().setFromPoints( [ new THREE.Vector3( 0,0,0 ), new THREE.Vector3( 0,0,-1 ) ] );
+
+        const line = new THREE.Line( geometry );
+        line.scale.z = 10;
         
         const self = this;
         
@@ -255,39 +247,64 @@ class App{
                 this.userData.attachedObject = undefined;
             }
         }
+        
+        function onDisconnected(){
+            const index = this.userData.index;
+            
+            if ( self.controllers ){
+                const obj = (index==0) ? self.controllers.right : self.controllers.left;
+                
+                if (obj){
+                    if (obj.controller){
+                        const controller = obj.controller;
+                        while( controller.children.length > 0 ) controller.remove( controller.children[0] );
+                        self.scene.remove( controller );
+                    }
+                    if (obj.grip) self.scene.remove( obj.grip );
+                }
+            }
+        }
 
-        self.controller = self.renderer.xr.getController(0);
-        self.controller1 = self.renderer.xr.getController(1);
+        this.controllers = {};
         
         if (info.right !== undefined){
+            const right = this.renderer.xr.getController(0);
+            right.userData.index = 0;
             
-            self.buildController( self.controller );
+            this.controllers.right = this.buildController( 0, line, modelFactory );
             
             if (info.right.trigger){
-                self.controller.addEventListener( 'selectstart', onSelectStart );
-                self.controller.addEventListener( 'selectend', onSelectEnd );
+                right.addEventListener( 'selectstart', onSelectStart );
+                right.addEventListener( 'selectend', onSelectEnd );
             }
 
             if (info.right.squeeze){
-                self.controller.addEventListener( 'squeezestart', onSqueezeStart );
-                self.controller.addEventListener( 'squeezeend', onSqueezeEnd );
+                right.addEventListener( 'squeezestart', onSqueezeStart );
+                right.addEventListener( 'squeezeend', onSqueezeEnd );
             }
+            
+            right.addEventListener( 'disconnected', onDisconnected );
         }
         
-    }
-    
-    buildController( controller ) {
-        const geometry = new THREE.BufferGeometry();
-        geometry.setAttribute( 'position', new THREE.Float32BufferAttribute( [ 0, 0, 0, 0, 0, - 1 ], 3 ) );
-                
-        const material = new THREE.LineBasicMaterial( );
+        if (info.left !== undefined){
+            const left = this.renderer.xr.getController(1);
+            left.userData.index = 1;
+            
+            this.controllers.left = this.buildController( 1, line, modelFactory );
+            
+            if (info.left.trigger){
+                left.addEventListener( 'selectstart', onSelectStart );
+                left.addEventListener( 'selectend', onSelectEnd );
+            }
 
-        const mesh = new THREE.Line( geometry, material );
-        mesh.scale.z = 0;
-        
-        controller.add(mesh);
+            if (info.left.squeeze){
+                left.addEventListener( 'squeezestart', onSqueezeStart );
+                left.addEventListener( 'squeezeend', onSqueezeEnd );
+            }
+            
+            left.addEventListener( 'disconnected', onDisconnected );
+        }
     }
-    
     
     handleController( controller ){
         if (controller.userData.selectPressed ){
@@ -321,9 +338,9 @@ class App{
         const self = this; 
         this.stats.update();
         if (this.controllers ){
-            this.controllers.forEach( ( controller ) => {
-                self.handleController( controller );
-            })  
+            Object.values( ( value ) => {
+                self.handleController( value.controller );
+            }) 
         } 
         if (this.renderer.xr.isPresenting) this.updateGamepadState();
         this.renderer.render( this.scene, this.camera );
