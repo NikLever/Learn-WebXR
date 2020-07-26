@@ -129,31 +129,7 @@ class App{
     }
     
     updateGamepadState(){
-        const session = this.renderer.xr.getSession();
         
-        const inputSource = session.inputSources[0];
-        
-        if (inputSource && inputSource.gamepad && this.gamepadIndices && this.ui && this.buttonStates){
-            const gamepad = inputSource.gamepad;
-            try{
-                Object.entries( this.buttonStates ).forEach( ( [ key, value ] ) => {
-                    const buttonIndex = this.gamepadIndices[key].button;
-                    if ( key.indexOf('touchpad')!=-1 || key.indexOf('thumbstick')!=-1){
-                        const xAxisIndex = this.gamepadIndices[key].xAxis;
-                        const yAxisIndex = this.gamepadIndices[key].yAxis;
-                        this.buttonStates[key].button = gamepad.buttons[buttonIndex].value; 
-                        this.buttonStates[key].xAxis = gamepad.axes[xAxisIndex].toFixed(2); 
-                        this.buttonStates[key].yAxis = gamepad.axes[yAxisIndex].toFixed(2); 
-                    }else{
-                        this.buttonStates[key] = gamepad.buttons[buttonIndex].value;
-                    }
-                    
-                    this.updateUI();
-                });
-            }catch(e){
-                console.warn("An error occurred setting the ui");
-            }
-        }
     }
     
     setupXR(){
@@ -164,29 +140,7 @@ class App{
         const self = this;
         
         function onConnected( event ){
-            const info = {};
             
-            fetchProfile( event.data, DEFAULT_PROFILES_PATH, DEFAULT_PROFILE ).then( ( { profile, assetPath } ) => {
-                console.log( JSON.stringify(profile));
-                
-                info.name = profile.profileId;
-                info.targetRayMode = event.data.targetRayMode;
-
-                Object.entries( profile.layouts ).forEach( ( [key, layout] ) => {
-                    const components = {};
-                    Object.values( layout.components ).forEach( ( component ) => {
-                        components[component.rootNodeName] = component.gamepadIndices;
-                    });
-                    info[key] = components;
-                });
-
-                self.createButtonStates( info.right );
-                
-                console.log( JSON.stringify(info) );
-
-                self.updateControllers( info );
-
-            } );
         }
                                                                                 
         const controller = this.renderer.xr.getController( 0 );
