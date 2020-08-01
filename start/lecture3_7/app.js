@@ -36,6 +36,7 @@ class App{
         this.controls.update();
         
         this.stats = new Stats();
+        document.body.appendChild( this.stats.dom );
         
         this.raycaster = new THREE.Raycaster();
         this.workingMatrix = new THREE.Matrix4();
@@ -43,7 +44,7 @@ class App{
         this.origin = new THREE.Vector3();
         
         this.initScene();
-        this.setupVR();
+        this.setupXR();
         
         window.addEventListener('resize', this.resize.bind(this) );
         
@@ -89,9 +90,16 @@ class App{
             }
         }
         
+        this.dolly = new THREE.Object3D();
+        this.dolly.position.z = 5;
+        this.dolly.add( this.camera );
+        this.scene.add( this.dolly );
+        
+        this.dummyCam = new THREE.Object3D();
+        this.camera.add( this.dummyCam );
     } 
     
-    setupVR(){
+    setupXR(){
         this.renderer.xr.enabled = true;
         
         const button = new VRButton( this.renderer );
@@ -110,6 +118,7 @@ class App{
         }
         
         this.controller = this.renderer.xr.getController( 0 );
+        this.dolly.add( this.controller );
         this.controller.addEventListener( 'selectstart', onSelectStart );
         this.controller.addEventListener( 'selectend', onSelectEnd );
         this.controller.addEventListener( 'connected', function ( event ) {
@@ -163,7 +172,30 @@ class App{
     
     handleController( controller, dt ){
         if (controller.userData.selectPressed ){
-   
+            const wallLimit = 1.3;
+            let pos = this.dolly.position.clone();
+            pos.y += 1;
+            const speed = 2;
+            const quaternion = this.dolly.quaternion.clone();
+            this.dolly.quaternion.copy( this.dummyCam.getWorldQuaternion());
+            this.dolly.getWorldDirection( this.workingVector );
+            this.workingVector.negate();
+            
+            this.raycaster.set( pos, this.workingVector );
+            
+            let blocked = false;
+            
+            let intersect = this.raycaster.intersectObjects( this.colliders );
+            
+            if (intersect.length>0){
+                if (intersect[0].distance < wallLimit ) blocked = true;
+            }
+            
+            if (!blocked){
+                this.dolly.translateZ(-dt*speed);
+            }
+            this.dolly.position.y = 0;
+            this.dolly.quaternion.copy( quaternion );
         }
     }
     
