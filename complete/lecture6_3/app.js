@@ -7,6 +7,7 @@ import { Stats } from '../../libs/stats.module.js';
 import { LoadingBar } from '../../libs/LoadingBar.js';
 import { VRButton } from '../../libs/VRButton.js';
 import { CanvasUI } from '../../libs/CanvasUI.js';
+import { GazeController } from '../../libs/GazeController.js'
 import { XRControllerModelFactory } from '../../libs/three/jsm/XRControllerModelFactory.js';
 
 class App{
@@ -54,6 +55,8 @@ class App{
 		
 		this.loadCollege();
         
+        this.immersive = false;
+        
         const self = this;
         
         fetch('./college.json')
@@ -100,7 +103,7 @@ class App{
 		// Load a glTF resource
 		loader.load(
 			// resource URL
-			'college2.glb',
+			'college.glb',
 			// called when the resource is loaded
 			function ( gltf ) {
 
@@ -158,6 +161,8 @@ class App{
         
         const self = this;
         
+        const timeoutId = setTimeout( connectionTimeout, 2000 );
+        
         function onSelectStart( event ) {
         
             this.userData.selectPressed = true;
@@ -170,11 +175,21 @@ class App{
         
         }
         
+        function onConnected( event ){
+            clearTimeout( timeoutId );
+        }
+        
+        function connectionTimeout(){
+            self.useGaze = true;
+            self.gazeController = new GazeController( self.scene, self.dummyCam );
+        }
+        
         this.controllers = this.buildControllers( this.dolly );
         
         this.controllers.forEach( ( controller ) =>{
             controller.addEventListener( 'selectstart', onSelectStart );
             controller.addEventListener( 'selectend', onSelectEnd );
+            controller.addEventListener( 'connected', onConnected );
         });
         
         const config = {
@@ -231,7 +246,7 @@ class App{
         //Store original dolly rotation
         const quaternion = this.dolly.quaternion.clone();
         //Get rotation for movement from the headset pose
-        this.dolly.quaternion.copy( this.dummyCam.getWorldQuaternion() );
+        this.dolly.quaternion.copy( this.dummyCam.getWorldQuaternion(this.workingQuaternion) );
 		this.dolly.getWorldDirection(dir);
         dir.negate();
 		this.raycaster.set(pos, dir);
@@ -303,27 +318,41 @@ class App{
 	render( timestamp, frame ){
         const dt = this.clock.getDelta();
         
-        if (this.renderer.xr.isPresenting && this.selectPressed){
-            this.moveDolly(dt);
-            if (this.boardData){
-                const scene = this.scene;
-                const dollyPos = this.dolly.getWorldPosition( new THREE.Vector3() );
-                let boardFound = false;
-                Object.entries(this.boardData).forEach(([name, info]) => {
-                    const obj = scene.getObjectByName( name );
-                    if (obj !== undefined){
-                        const pos = obj.getWorldPosition( new THREE.Vector3() );
-                        if (dollyPos.distanceTo( pos ) < 3){
-                            boardFound = true;
-                            if ( this.boardShown !== name) this.showInfoboard( name, info, pos );
+        if (this.renderer.xr.isPresenting){
+            let moveGaze = false;
+        
+            if ( this.useGaze && this.gazeController!==undefined){
+                this.gazeController.update();
+                moveGaze = (this.gazeController.mode == GazeController.Modes.MOVE);
+            }
+        
+            if (this.selectPressed || moveGaze){
+                this.moveDolly(dt);
+                if (this.boardData){
+                    const scene = this.scene;
+                    const dollyPos = this.dolly.getWorldPosition( new THREE.Vector3() );
+                    let boardFound = false;
+                    Object.entries(this.boardData).forEach(([name, info]) => {
+                        const obj = scene.getObjectByName( name );
+                        if (obj !== undefined){
+                            const pos = obj.getWorldPosition( new THREE.Vector3() );
+                            if (dollyPos.distanceTo( pos ) < 3){
+                                boardFound = true;
+                                if ( this.boardShown !== name) this.showInfoboard( name, info, pos );
+                            }
                         }
+                    });
+                    if (!boardFound){
+                        this.boardShown = "";
+                        this.ui.visible = false;
                     }
-                });
-                if (!boardFound){
-                    this.boardShown = "";
-                    this.ui.visible = false;
                 }
             }
+        }
+        
+        if ( this.immersive != this.renderer.xr.isPresenting){
+            this.resize();
+            this.immersive = this.renderer.xr.isPresenting;
         }
         
         this.stats.update();

@@ -56,12 +56,6 @@ class App{
         
         const self = this;
         
-        fetch('./college.json')
-            .then(response => response.json())
-            .then(obj =>{
-                self.boardShown = '';
-                self.boardData = obj;
-            });
 	}
 	
     setEnvironment(){
@@ -100,7 +94,7 @@ class App{
 		// Load a glTF resource
 		loader.load(
 			// resource URL
-			'college2.glb',
+			'college.glb',
 			// called when the resource is loaded
 			function ( gltf ) {
 
@@ -177,19 +171,7 @@ class App{
             controller.addEventListener( 'selectend', onSelectEnd );
         });
         
-        const config = {
-            panelSize: { height: 0.5 },
-            height: 256,
-            name: { fontSize: 50, height: 70 },
-            info: { position:{ top: 70, backgroundColor: "#ccc", fontColor:"#000" } }
-        }
-        const content = {
-            name: "name",
-            info: "info"
-        }
-        
-        this.ui = new CanvasUI( content, config );
-        this.scene.add( this.ui.mesh );
+        this.createUI();
         
         this.renderer.setAnimationLoop( this.render.bind(this) );
     }
@@ -288,16 +270,12 @@ class App{
         return ( this.controllers !== undefined && (this.controllers[0].userData.selectPressed || this.controllers[1].userData.selectPressed) );    
     }
     
-    showInfoboard( name, info, pos ){
-        if (this.ui === undefined ) return;
-        this.ui.position.copy(pos).add( this.workingVec3.set( 0, 1.3, 0 ) );
-        const camPos = this.dummyCam.getWorldPosition( this.workingVec3 );
-        this.ui.updateElement( 'name', info.name );
-        this.ui.updateElement( 'info', info.info );
-        this.ui.update();
-        this.ui.lookAt( camPos )
-        this.ui.visible = true;
-        this.boardShown = name;
+    createUI(){
+        
+    }
+    
+    showInfoboard( name, obj, pos ){
+        
     }
 
 	render( timestamp, frame ){
@@ -305,25 +283,6 @@ class App{
         
         if (this.renderer.xr.isPresenting && this.selectPressed){
             this.moveDolly(dt);
-            if (this.boardData){
-                const scene = this.scene;
-                const dollyPos = this.dolly.getWorldPosition( new THREE.Vector3() );
-                let boardFound = false;
-                Object.entries(this.boardData).forEach(([name, info]) => {
-                    const obj = scene.getObjectByName( name );
-                    if (obj !== undefined){
-                        const pos = obj.getWorldPosition( new THREE.Vector3() );
-                        if (dollyPos.distanceTo( pos ) < 3){
-                            boardFound = true;
-                            if ( this.boardShown !== name) this.showInfoboard( name, info, pos );
-                        }
-                    }
-                });
-                if (!boardFound){
-                    this.boardShown = "";
-                    this.ui.visible = false;
-                }
-            }
         }
         
         this.stats.update();

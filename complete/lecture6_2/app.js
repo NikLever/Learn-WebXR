@@ -100,7 +100,7 @@ class App{
 		// Load a glTF resource
 		loader.load(
 			// resource URL
-			'college2.glb',
+			'college.glb',
 			// called when the resource is loaded
 			function ( gltf ) {
 
@@ -177,19 +177,7 @@ class App{
             controller.addEventListener( 'selectend', onSelectEnd );
         });
         
-        const config = {
-            panelSize: { height: 0.5 },
-            height: 256,
-            name: { fontSize: 50, height: 70 },
-            info: { position:{ top: 70, backgroundColor: "#ccc", fontColor:"#000" } }
-        }
-        const content = {
-            name: "name",
-            info: "info"
-        }
-        
-        this.ui = new CanvasUI( content, config );
-        this.scene.add( this.ui.mesh );
+        this.createUI();
         
         this.renderer.setAnimationLoop( this.render.bind(this) );
     }
@@ -288,12 +276,29 @@ class App{
         return ( this.controllers !== undefined && (this.controllers[0].userData.selectPressed || this.controllers[1].userData.selectPressed) );    
     }
     
-    showInfoboard( name, info, pos ){
+    createUI(){
+        const config = {
+            panelSize: { height: 0.5 },
+            height: 256,
+            name: { fontSize: 50, height: 70 },
+            info: { position:{ top: 70 }, backgroundColor: "#ccc", fontColor:"#000" }
+        };
+        
+        const content = {
+            name: "name",
+            info: "info"
+        };
+        
+        this.ui = new CanvasUI( content, config );
+        this.scene.add( this.ui.mesh );
+    }
+    
+    showInfoboard( name, obj, pos ){
         if (this.ui === undefined ) return;
         this.ui.position.copy(pos).add( this.workingVec3.set( 0, 1.3, 0 ) );
         const camPos = this.dummyCam.getWorldPosition( this.workingVec3 );
-        this.ui.updateElement( 'name', info.name );
-        this.ui.updateElement( 'info', info.info );
+        this.ui.updateElement( 'name', obj.name );
+        this.ui.updateElement( 'info', obj.info );
         this.ui.update();
         this.ui.lookAt( camPos )
         this.ui.visible = true;
