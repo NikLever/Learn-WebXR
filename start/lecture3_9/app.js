@@ -13,7 +13,7 @@ class App{
 		this.camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 0.01, 20 );
 		
 		this.scene = new THREE.Scene();
-       
+        
 		this.scene.add( new THREE.HemisphereLight( 0x606060, 0x404040 ) );
 
         const light = new THREE.DirectionalLight( 0xffffff );
@@ -32,9 +32,10 @@ class App{
         this.controls.update();
         
         this.stats = new Stats();
+        document.body.appendChild( this.stats.dom );
         
         this.initScene();
-        this.setupVR();
+        this.setupXR();
         
         window.addEventListener('resize', this.resize.bind(this) );
 	}	
@@ -44,8 +45,26 @@ class App{
         this.meshes = [];
     }
     
-    setupVR(){
+    setupXR(){
+        this.renderer.xr.enabled = true;
         
+        const self = this;
+        let controller;
+        
+        function onSelect(){
+            const material = new THREE.MeshPhongMaterial( { color: 0xFFFFFF * Math.random() });
+            const mesh = new THREE.Mesh( self.geometry, material );
+            mesh.position.set( 0,0,-0.3).applyMatrix4( controller.matrixWorld );
+            mesh.quaternion.setFromRotationMatrix( controller.matrixWorld );
+            self.scene.add(mesh);
+            self.meshes.push(mesh);
+        }
+        
+        const btn = new ARButton( this.renderer );
+        
+        controller = this.renderer.xr.getController(0);
+        controller.addEventListener( 'select', onSelect );
+        this.scene.add(controller);
         
         this.renderer.setAnimationLoop( this.render.bind(this) );
     }
