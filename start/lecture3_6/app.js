@@ -124,8 +124,12 @@ class App{
     }
     
     updateUI(){
-        this.ui.updateElement( 'body', JSON.stringify( this.buttonStates ) );
-        this.ui.update();    
+        const str = JSON.stringify( this.buttonStates );
+        if (this.strStates === undefined || ( str != this.strStates )){
+            this.ui.updateElement( 'body', str );
+            this.ui.update(); 
+            this.strStates = str;
+        }
     }
     
     updateGamepadState(){
@@ -142,14 +146,29 @@ class App{
         function onConnected( event ){
             
         }
-                                                                                
+         
         const controller = this.renderer.xr.getController( 0 );
         
         controller.addEventListener( 'connected', onConnected );
+        
+        const modelFactory = new XRControllerModelFactory();
+        
+        const geometry = new THREE.BufferGeometry().setFromPoints( [ new THREE.Vector3( 0,0,0 ), new THREE.Vector3( 0,0,-1 ) ] );
+
+        const line = new THREE.Line( geometry );
+        line.scale.z = 0;
+        
+        this.controllers = {};
+        this.controllers.right = this.buildController( 0, line, modelFactory );
+        this.controllers.left = this.buildController( 1, line, modelFactory );
+
     }
     
     buildController( index, line, modelFactory ){
         const controller = this.renderer.xr.getController( index );
+        
+        controller.userData.selectPressed = false;
+        controller.userData.index = index;
         
         if (line) controller.add( line.clone() );
         
@@ -167,13 +186,6 @@ class App{
     }
     
     updateControllers(info){
-        const modelFactory = new XRControllerModelFactory();
-        
-        const geometry = new THREE.BufferGeometry().setFromPoints( [ new THREE.Vector3( 0,0,0 ), new THREE.Vector3( 0,0,-1 ) ] );
-
-        const line = new THREE.Line( geometry );
-        line.scale.z = 10;
-        
         const self = this;
         
         function onSelectStart( ){
@@ -204,6 +216,7 @@ class App{
         
         function onDisconnected(){
             const index = this.userData.index;
+            console.log(`Disconnected controller ${index}`);
             
             if ( self.controllers ){
                 const obj = (index==0) ? self.controllers.right : self.controllers.left;
@@ -218,21 +231,22 @@ class App{
                 }
             }
         }
-
-        this.controllers = {};
         
         if (info.right !== undefined){
             const right = this.renderer.xr.getController(0);
-            right.userData.index = 0;
             
-            this.controllers.right = this.buildController( 0, line, modelFactory );
+            let trigger = false, squeeze = false;
             
-            if (info.right.trigger){
+            Object.keys( info.right ).forEach( (key) => {
+                if (key.indexOf('trigger')!=-1) trigger = true;                   if (key.indexOf('squeeze')!=-1) squeeze = true;      
+            });
+            
+            if (trigger){
                 right.addEventListener( 'selectstart', onSelectStart );
                 right.addEventListener( 'selectend', onSelectEnd );
             }
 
-            if (info.right.squeeze){
+            if (squeeze){
                 right.addEventListener( 'squeezestart', onSqueezeStart );
                 right.addEventListener( 'squeezeend', onSqueezeEnd );
             }
@@ -242,16 +256,19 @@ class App{
         
         if (info.left !== undefined){
             const left = this.renderer.xr.getController(1);
-            left.userData.index = 1;
             
-            this.controllers.left = this.buildController( 1, line, modelFactory );
+            let trigger = false, squeeze = false;
             
-            if (info.left.trigger){
+            Object.keys( info.left ).forEach( (key) => {
+                if (key.indexOf('trigger')!=-1) trigger = true;                   if (key.indexOf('squeeze')!=-1) squeeze = true;      
+            });
+            
+            if (trigger){
                 left.addEventListener( 'selectstart', onSelectStart );
                 left.addEventListener( 'selectend', onSelectEnd );
             }
 
-            if (info.left.squeeze){
+            if (squeeze){
                 left.addEventListener( 'squeezestart', onSqueezeStart );
                 left.addEventListener( 'squeezeend', onSqueezeEnd );
             }
@@ -289,14 +306,24 @@ class App{
     }
     
 	render( ) {   
-        const self = this; 
-        this.stats.update();
-        if (this.controllers ){
-            Object.values( ( value ) => {
-                self.handleController( value.controller );
-            }) 
-        } 
-        if (this.renderer.xr.isPresenting) this.updateGamepadState();
+        const dt = this.clock.getDelta();
+        
+        if (this.renderer.xr.isPresenting){
+            const self = this; 
+            if (this.controllers ){
+                Object.values( this.controllers).forEach( ( value ) => {
+                    self.handleController( value.controller );
+                });
+            } 
+            if (this.elapsedTime===undefined) this.elapsedTime = 0;
+            this.elapsedTime += dt;
+            if (this.elapsedTime > 0.3){
+                this.updateGamepadState();
+                this.elapsedTime = 0;
+            }
+        }else{
+            this.stats.update();
+        }
         this.renderer.render( this.scene, this.camera );
     }
 }

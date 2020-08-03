@@ -186,7 +186,39 @@ class App{
     }
     
     moveDolly(dt){
+       if (this.proxy === undefined) return;
         
+        const wallLimit = 1.3;
+        const speed = 2;
+		let pos = this.dolly.position.clone();
+        const posY = pos.y;
+        pos.y += 1;
+        
+		let dir = new THREE.Vector3();
+        //Store original dolly rotation
+        const quaternion = this.dolly.quaternion.clone();
+        //Get rotation for movement from the headset pose
+        this.dolly.quaternion.copy( this.dummyCam.getWorldQuaternion() );
+		this.dolly.getWorldDirection(dir);
+        dir.negate();
+		this.raycaster.set(pos, dir);
+		
+        let blocked = false;
+		
+		let intersect = this.raycaster.intersectObject(this.proxy);
+        if (intersect.length>0){
+            if (intersect[0].distance < wallLimit) blocked = true;
+        }
+		
+		if (!blocked){
+            this.dolly.translateZ(-dt*speed);
+            pos = this.dolly.getWorldPosition( this.origin );
+		}
+
+        this.dolly.position.y = posY;
+
+        //Restore the original rotation
+        this.dolly.quaternion.copy( quaternion ); 
 	}
 		
     get selectPressed(){
