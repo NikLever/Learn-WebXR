@@ -142,12 +142,7 @@ class App{
         
         const btn = new ARButton( this.renderer, { onSessionStart, onSessionEnd, sessionInit: { optionalFeatures: [ 'dom-overlay' ], domOverlay: { root: document.body } } } );
         
-        this.gestures = new Hammer( this.renderer.domElement );
-        this.gestures.on('pan', function(ev) {
-            console.log(ev);
-            self.ui.updateElement( 'info', JSON.stringify(ev) );
-        });
-        /*this.gestures = new ControllerGestures( this.renderer );
+        this.gestures = new ControllerGestures( this.renderer );
         this.gestures.addEventListener( 'tap', (ev)=>{
             console.log( 'tap' ); 
             self.ui.updateElement('info', 'tap' );
@@ -202,7 +197,7 @@ class App{
                 self.knight.object.rotateY( ev.theta );
                 self.ui.updateElement('info', `rotate ${ev.theta.toFixed(3)}`  );
             }
-        });*/
+        });
         
         this.renderer.setAnimationLoop( this.render.bind(this) );
     }
