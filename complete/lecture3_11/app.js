@@ -140,11 +140,11 @@ class App{
             self.camera.remove( self.ui.mesh );
         }
         
-        const btn = new ARButton( this.renderer, { onSessionStart, onSessionEnd, sessionInit: { optionalFeatures: [ 'dom-overlay' ], domOverlay: { root: document.body } } } );
+        const btn = new ARButton( this.renderer, { onSessionStart, onSessionEnd });//, sessionInit: { optionalFeatures: [ 'dom-overlay' ], domOverlay: { root: document.body } } } );
         
         this.gestures = new ControllerGestures( this.renderer );
         this.gestures.addEventListener( 'tap', (ev)=>{
-            console.log( 'tap' ); 
+            //console.log( 'tap' ); 
             self.ui.updateElement('info', 'tap' );
             if (!self.knight.object.visible){
                 self.knight.object.visible = true;
@@ -153,15 +153,15 @@ class App{
             }
         });
         this.gestures.addEventListener( 'doubletap', (ev)=>{
-            console.log( 'doubletap'); 
+            //console.log( 'doubletap'); 
             self.ui.updateElement('info', 'doubletap' );
         });
         this.gestures.addEventListener( 'press', (ev)=>{
-            console.log( 'press' );    
+            //console.log( 'press' );    
             self.ui.updateElement('info', 'press' );
         });
         this.gestures.addEventListener( 'pan', (ev)=>{
-            console.log( ev );
+            //console.log( ev );
             if (ev.initialise !== undefined){
                 self.startPosition = self.knight.object.position.clone();
             }else{
@@ -171,7 +171,7 @@ class App{
             } 
         });
         this.gestures.addEventListener( 'swipe', (ev)=>{
-            console.log( ev );   
+            //console.log( ev );   
             self.ui.updateElement('info', `swipe ${ev.direction}` );
             if (self.knight.object.visible){
                 self.knight.object.visible = false;
@@ -179,7 +179,7 @@ class App{
             }
         });
         this.gestures.addEventListener( 'pinch', (ev)=>{
-            console.log( ev );  
+            //console.log( ev );  
             if (ev.initialise !== undefined){
                 self.startScale = self.knight.object.scale.clone();
             }else{
@@ -189,7 +189,7 @@ class App{
             }
         });
         this.gestures.addEventListener( 'rotate', (ev)=>{
-            console.log( ev ); 
+            //      sconsole.log( ev ); 
             if (ev.initialise !== undefined){
                 self.startQuaternion = self.knight.object.quaternion.clone();
             }else{
@@ -212,7 +212,7 @@ class App{
         const dt = this.clock.getDelta();
         this.stats.update();
         if ( this.renderer.xr.isPresenting ){
-            //this.gestures.update();
+            this.gestures.update();
             this.ui.update();
         }
         if ( this.knight !== undefined ) this.knight.update(dt);
