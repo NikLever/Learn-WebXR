@@ -152,50 +152,31 @@ class App{
 		);
 	}
     
-    onMove( forward, turn ){
-        if (this.dolly){
-            this.dolly.userData.forward = forward;
-            this.dolly.userData.turn = -turn;
-        }
-    }
-    
     setupXR(){
         this.renderer.xr.enabled = true;
 
         const self = this;
- 
-        function vrStatus( available ){
-            if (available){
-        
-                function onSelectStart( event ) {
+   
+        function onSelectStart( event ) {
 
-                    this.userData.selectPressed = true;
+            this.userData.selectPressed = true;
 
-                }
-
-                function onSelectEnd( event ) {
-
-                    this.userData.selectPressed = false;
-
-                }
-
-                self.controllers = self.buildControllers( self.dolly );
-
-                self.controllers.forEach( ( controller ) =>{
-                    controller.addEventListener( 'selectstart', onSelectStart );
-                    controller.addEventListener( 'selectend', onSelectEnd );
-                });
-                
-            }else{
-                
-                self.joystick = new JoyStick({
-                    onMove: self.onMove.bind(self)
-                });
-                
-            }
         }
+
+        function onSelectEnd( event ) {
+
+            this.userData.selectPressed = false;
+
+        }
+
+        self.controllers = self.buildControllers( self.dolly );
+
+        self.controllers.forEach( ( controller ) =>{
+            controller.addEventListener( 'selectstart', onSelectStart );
+            controller.addEventListener( 'selectend', onSelectEnd );
+        });          
         
-        const btn = new VRButton( this.renderer, { vrStatus } );
+        const btn = new VRButton( this.renderer );
         
         const config = {
             panelSize: { height: 0.5 },
@@ -249,22 +230,14 @@ class App{
         
 		let dir = new THREE.Vector3();
         
-        if (this.joystick === undefined){
-            //Store original dolly rotation
-            const quaternion = this.dolly.quaternion.clone();
-            //Get rotation for movement from the headset pose
-            this.dolly.quaternion.copy( this.dummyCam.getWorldQuaternion() );
-            this.dolly.getWorldDirection(dir);
-            dir.negate();
-        }else{
-            this.dolly.getWorldDirection(dir);
-            if (this.dolly.userData.forward>0){
-                dir.negate();
-            }else{
-                dt = -dt;
-            }
-        }
-		this.raycaster.set(pos, dir);
+        //Store original dolly rotation
+        const quaternion = this.dolly.quaternion.clone();
+        //Get rotation for movement from the headset pose
+        this.dolly.quaternion.copy( this.dummyCam.getWorldQuaternion() );
+        this.dolly.getWorldDirection(dir);
+        dir.negate();
+        
+  		this.raycaster.set(pos, dir);
 		
         let blocked = false;
 		
@@ -338,16 +311,6 @@ class App{
         if (this.renderer.xr.isPresenting && this.selectPressed){
             this.moveDolly(dt);
             moved = true;
-        }
-        
-        if (this.joystick !== undefined){
-            if (this.dolly.userData.forward !== undefined){
-                if (this.dolly.userData.forward != 0){
-                    this.moveDolly(dt);
-                    moved = true;
-                }
-                this.dolly.rotateY(this.dolly.userData.turn*dt);
-            }
         }
         
         if (this.boardData && moved){

@@ -147,7 +147,8 @@ class App{
             console.log(ev);
             self.ui.updateElement( 'info', JSON.stringify(ev) );
         });
-        /*this.gestures = new ControllerGestures( this.renderer );
+        
+        this.gestures = new ControllerGestures( this.renderer );
         this.gestures.addEventListener( 'tap', (ev)=>{
             console.log( 'tap' ); 
             self.ui.updateElement('info', 'tap' );
@@ -202,7 +203,7 @@ class App{
                 self.knight.object.rotateY( ev.theta );
                 self.ui.updateElement('info', `rotate ${ev.theta.toFixed(3)}`  );
             }
-        });*/
+        });
         
         this.renderer.setAnimationLoop( this.render.bind(this) );
     }
@@ -217,7 +218,7 @@ class App{
         const dt = this.clock.getDelta();
         this.stats.update();
         if ( this.renderer.xr.isPresenting ){
-            //this.gestures.update();
+            this.gestures.update();
             this.ui.update();
         }
         if ( this.knight !== undefined ) this.knight.update(dt);
