@@ -13,11 +13,13 @@ class ControllerGestures extends THREE.EventDispatcher{
         
         this.controller1 = renderer.xr.getController(0);
         this.controller1.userData.gestures = { index: 0 };
+        this.controller1.userData.selectPressed = false;
         this.controller1.addEventListener( 'selectstart', onSelectStart );
         this.controller1.addEventListener( 'selectend', onSelectEnd );
         
         this.controller2 = renderer.xr.getController(1);
         this.controller2.userData.gestures = { index: 1 };
+        this.controller2.userData.selectPressed = false;
         this.controller2.addEventListener( 'selectstart', onSelectStart );
         this.controller2.addEventListener( 'selectend', onSelectEnd );
         
@@ -42,9 +44,11 @@ class ControllerGestures extends THREE.EventDispatcher{
             if ( self.type.indexOf('tap') == -1) data.taps = 0;
             
             self.type = 'unknown';
-            data.selectPressed = true;
+            this.userData.selectPressed = true;
             
             self.touchCount++;
+            
+            console.log( `onSelectStart touchCount: ${ self.touchCount }` );
         }
         
         function onSelectEnd( ){
@@ -71,10 +75,34 @@ class ControllerGestures extends THREE.EventDispatcher{
                 self.type = 'unknown';
             }
             
-            data.selectPressed = false;
+            this.userData.selectPressed = false;
+            data.startPosition = undefined;
             
             self.touchCount--;
         }
+    }
+    
+    get multiTouch(){
+        let result;
+        if ( this.controller1 === undefined || this.controller2 === undefined ){   
+            result = false;
+        }else{
+            result = this.controller1.userData.selectPressed && this.controller2.userData.selectPressed;
+        }
+        const self = this;
+        console.log( `ControllerGestures multiTouch: ${result} touchCount:${self.touchCount}`);
+        return result;
+    }
+    
+    get touch(){
+        let result;
+        if ( this.controller1 === undefined || this.controller2 === undefined ){   
+            result = false;
+        }else{
+            result = this.controller1.userData.selectPressed || this.controller2.userData.selectPressed;
+        }
+        //console.log( `ControllerGestures touch: ${result}`);
+        return result;
     }
     
     get debugMsg(){
@@ -88,17 +116,17 @@ class ControllerGestures extends THREE.EventDispatcher{
         
         let elapsedTime;
         
-        if (data1.selectPressed && data1.startPosition === undefined){
+        if (this.controller1.userData.selectPressed && data1.startPosition === undefined){
             elapsedTime = currentTime - data1.startTime;
             if (elapsedTime > 0.05 ) data1.startPosition = this.controller1.position.clone();
         }
         
-        if (data2.selectPressed && data2.startPosition === undefined){
+        if (this.controller2.userData.selectPressed && data2.startPosition === undefined){
             elapsedTime = currentTime - data2.startTime;
             if (elapsedTime > 0.05 ) data2.startPosition = this.controller2.position.clone();
         }
         
-        if (!data1.selectPressed && this.type === 'tap' ){
+        if (!this.controller1.userData.selectPressed && this.type === 'tap' ){
             //Only dispatch event after double click limit is passed
             elapsedTime = this.clock.getElapsedTime() - data1.endTime;
             if (elapsedTime > this.doubleClickLimit){
@@ -122,10 +150,9 @@ class ControllerGestures extends THREE.EventDispatcher{
             }
         }
         
-        if (this.type === 'unknown'){
-            if (data1.selectPressed && data1.startPosition !== undefined){
-                //startPosition is undefined for 1/20 sec
-                if (data2.selectPressed ){
+        if (this.type === 'unknown' && this.touch){
+            if (data1.startPosition !== undefined){
+                if (this.multiTouch){
                     if (data2.startPosition !== undefined){
                         //startPosition is undefined for 1/20 sec
                         //test for pinch or rotate
@@ -152,7 +179,7 @@ class ControllerGestures extends THREE.EventDispatcher{
                     let dist = data1.startPosition.distanceTo( this.controller1.position );
                     elapsedTime = this.clock.getElapsedTime() - data1.startTime;
                     const velocity = dist/elapsedTime;
-                    console.log(`dist:${dist.toFixed(3)} velocity:${velocity.toFixed(3)}`);
+                    //console.log(`dist:${dist.toFixed(3)} velocity:${velocity.toFixed(3)}`);
                     if ( dist > 0.01 && velocity > 0.1 ){
                         const v = this.controller1.position.clone().sub( data1.startPosition );
                         let maxY = (Math.abs(v.y) > Math.abs(v.x)) && (Math.abs(v.y) > Math.abs(v.z));

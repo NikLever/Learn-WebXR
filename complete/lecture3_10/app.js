@@ -59,12 +59,12 @@ class App{
         this.dummyCam = new THREE.Object3D();
         this.camera.add( this.dummyCam );
         
-        this.createGUI();
+        this.createUI();
     }
     
-    createGUI() {
+    createUI() {
         
-        const css = {
+        const config = {
             panelSize: { width: 0.6, height: 0.3 },
             width: 512,
             height: 256,
@@ -95,7 +95,7 @@ class App{
             msg: "controller"
         }
         
-        const ui = new CanvasUI( content, css );
+        const ui = new CanvasUI( content, config );
         ui.mesh.material.opacity = 0.7;
         
         this.ui = ui;

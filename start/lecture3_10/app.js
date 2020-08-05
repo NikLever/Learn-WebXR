@@ -2,7 +2,7 @@ import * as THREE from '../../libs/three/three.module.js';
 import { OrbitControls } from '../../libs/three/jsm/OrbitControls.js';
 import { GLTFLoader } from '../../libs/three/jsm/GLTFLoader.js';
 import { Stats } from '../../libs/stats.module.js';
-import { CanvasGUI } from '../../libs/CanvasGUI.js'
+import { CanvasUI } from '../../libs/CanvasUI.js'
 import { ARButton } from '../../libs/ARButton.js';
 import {
 	Constants as MotionControllerConstants,
@@ -43,13 +43,14 @@ class App{
         this.controls.update();
         
         this.stats = new Stats();
+        document.body.appendChild( this.stats.dom );
         
         this.origin = new THREE.Vector3();
         this.quaternion = new THREE.Quaternion();
         this.euler = new THREE.Euler();
         
         this.initScene();
-        this.setupVR();
+        this.setupXR();
         
         window.addEventListener('resize', this.resize.bind(this) );
 	}	
@@ -58,12 +59,12 @@ class App{
         this.dummyCam = new THREE.Object3D();
         this.camera.add( this.dummyCam );
         
-        this.createGUI();
+        this.createUI();
     }
     
-    createGUI() {
+    createUI() {
         
-        const css = {
+        const config = {
             panelSize: { width: 0.6, height: 0.3 },
             width: 512,
             height: 256,
@@ -94,13 +95,13 @@ class App{
             msg: "controller"
         }
         
-        const gui = new CanvasGUI( content, css );
-        gui.mesh.material.opacity = 0.7;
+        const ui = new CanvasUI( content, config );
+        ui.mesh.material.opacity = 0.7;
         
-        this.gui = gui;
+        this.ui = ui;
     }
     
-    setupVR(){
+    setupXR(){
         this.renderer.xr.enabled = true; 
         
         const self = this;
@@ -125,7 +126,7 @@ class App{
                     });
 
                     self.info = info;
-                    self.gui.updateElement( "info", JSON.stringify(info) );
+                    self.ui.updateElement( "info", JSON.stringify(info) );
 
                 } );
             }
@@ -136,7 +137,7 @@ class App{
         }
         
         function onSessionEnd(){
-
+            
         }
         
         this.renderer.setAnimationLoop( this.render.bind(this) );
@@ -156,9 +157,13 @@ class App{
 	render( ) {   
         const dt = this.clock.getDelta();
         this.stats.update();
-        this.gui.update();
+        this.ui.update();
         if (this.renderer.xr.isPresenting){
+            const pos = this.controller.getWorldPosition( this.origin );
+            this.euler.setFromQuaternion( this.controller.getWorldQuaternion( this.quaternion ));
             
+            const msg = this.createMsg( pos, this.euler );
+            this.ui.updateElement("msg", msg);
         }
         this.renderer.render( this.scene, this.camera );
     }
