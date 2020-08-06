@@ -142,15 +142,6 @@ class App{
         
         const btn = new ARButton( this.renderer, { onSessionStart, onSessionEnd });//, sessionInit: { optionalFeatures: [ 'dom-overlay' ], domOverlay: { root: document.body } } } );
         
-<<<<<<< HEAD
-        this.gestures = new Hammer( this.renderer.domElement );
-        this.gestures.on('pan', function(ev) {
-            console.log(ev);
-            self.ui.updateElement( 'info', JSON.stringify(ev) );
-        });
-        
-=======
->>>>>>> 61402baf99da8ccc799be55db138326267f4af4d
         this.gestures = new ControllerGestures( this.renderer );
         this.gestures.addEventListener( 'tap', (ev)=>{
             //console.log( 'tap' ); 
