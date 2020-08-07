@@ -14,7 +14,7 @@ class App{
         
         this.clock = new THREE.Clock();
         
-		this.camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.1, 100 );
+		this.camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.1, 1000 );
 		this.camera.position.set( 0, 1.6, 3 );
         this.camera.lookAt( 0, 0, 0 );
         
@@ -36,7 +36,7 @@ class App{
 		container.appendChild( this.renderer.domElement );
         
         this.controls = new OrbitControls( this.camera, this.renderer.domElement );
-        this.controls.target.set(0, 3.5, 0);
+        this.controls.target.set(0, 1, 0);
         this.controls.update();
         
         this.stats = new Stats();
@@ -71,8 +71,7 @@ class App{
     }
     
     set action(name){
-		//Make a copy of the clip if this is a remote player
-		if (this.actionName == name.toLowerCase()) return;
+		if (this.actionName == name) return;
 		
 		const clip = this.animations[name];
 		
@@ -91,6 +90,19 @@ class App{
 		}
 	}
     
+    addButtonEvents(){
+        const self = this;
+        
+        function onClick(){
+            self.action = this.innerHTML;    
+        }
+        
+        for(let i=1; i<=4; i++){
+            const btn = document.getElementById(`btn${i}`);
+            btn.addEventListener( 'click', onClick );
+        }    
+    }
+    
     loadGLTF(filename){
         const loader = new GLTFLoader( );
         const dracoLoader = new DRACOLoader();
@@ -107,16 +119,23 @@ class App{
 			function ( gltf ) {
                 self.animations = {};
                 
-                self.mixer = new THREE.AnimationMixer( gltf.scene )
-                gltf.animations.forEach( (anim => {
+                gltf.animations.forEach( (anim)=>{
                     self.animations[anim.name] = anim;
-                }));
-                self.scene.add( gltf.scene );
+                })
+                
+                self.addButtonEvents();
+                
+                self.knight = gltf.scene.children[0];
+                
+                self.mixer = new THREE.AnimationMixer( self.knight )
+                
+                self.scene.add( self.knight );
                 
                 self.loadingBar.visible = false;
+                
                 self.action = "Idle";
-                const scale = 0.005;
-				gltf.scene.scale.set(scale, scale, scale); 
+                const scale = 0.01;
+				self.knight.scale.set(scale, scale, scale); 
                 
                 self.renderer.setAnimationLoop( self.render.bind(self) );
 			},

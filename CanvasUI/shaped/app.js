@@ -1,7 +1,7 @@
-import * as THREE from '../../../libs/three/three.module.js';
-import { BoxLineGeometry } from '../../../libs/three/jsm/BoxLineGeometry.js';
-import { CanvasUI } from '../../../libs/CanvasUI.js'
-import { VRButton } from '../../../libs/VRButton.js';
+import * as THREE from '../../libs/three/three.module.js';
+import { BoxLineGeometry } from '../../libs/three/jsm/BoxLineGeometry.js';
+import { CanvasUI } from '../../libs/CanvasUI.js'
+import { VRButton } from '../../libs/VRButton.js';
 
 class App{
 	constructor(){
@@ -46,8 +46,22 @@ class App{
     }
     
     createUI() {
-        this.ui = new CanvasUI(  );
-        this.ui.updateElement("body", "Hello World" );
+        //clipPath created using https://yqnn.github.io/svg-path-editor/
+        const config = {
+            body: { clipPath: "M 258.3888 5.4432 C 126.9744 5.4432 20.4432 81.8424 20.4432 164.4624 C 20.4432 229.1976 86.3448 284.2128 178.1016 304.8192 C 183.5448 357.696 173.2416 444.204 146.8032 476.6688 C 186.6552 431.9568 229.2288 356.5296 244.7808 313.3728 C 249.252 313.3728 253.9176 313.7616 258.3888 313.7616 C 389.8032 313.7616 496.14 246.888 496.14 164.4624 S 389.8032 5.4432 258.3888 5.4432 Z", backgroundColor: "#ddd", fontColor: "#000", fontFamily: "Gochi Hand" },
+            speech: { type: "text", position: { left: 50, top: 80 }, fontSize: 45, fontColor: "#000", width: 400, height: 250 }
+        }
+        const speech = "A custom shaped panel. How about that?";
+        const content = {
+            speech
+        }
+        const ui = new CanvasUI( content, config );
+        
+        this.ui = ui;
+        
+        document.fonts.ready.then(function () {
+            ui.updateElement( 'speech', speech );
+        });
     }
     
     setupXR(){

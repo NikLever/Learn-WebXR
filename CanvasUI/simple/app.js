@@ -1,14 +1,14 @@
-import * as THREE from '../../../libs/three/three.module.js';
-import { BoxLineGeometry } from '../../../libs/three/jsm/BoxLineGeometry.js';
-import { CanvasUI } from '../../../libs/CanvasUI.js'
-import { VRButton } from '../../../libs/VRButton.js';
+import * as THREE from '../../libs/three/three.module.js';
+import { BoxLineGeometry } from '../../libs/three/jsm/BoxLineGeometry.js';
+import { CanvasUI } from '../../libs/CanvasUI.js'
+import { VRButton } from '../../libs/VRButton.js';
 
 class App{
 	constructor(){
 		const container = document.createElement( 'div' );
 		document.body.appendChild( container );
                 
-		this.camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.1, 100 );
+		this.camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 100 );
 		this.camera.position.set( 0, 1.6, 0 );
         
 		this.scene = new THREE.Scene();
@@ -46,15 +46,11 @@ class App{
     }
     
     createUI() {
-        const config = {
-            image: { type: "img", position: { left: 20, top: 20 }, width: 472 },
-            info: { type: "text", position: { top: 300 } }
-        }
-        const content = {
-            image: "../../../assets/promo.jpg",
-            info: "The promo image from the course: Learn to create WebXR, VR and AR, experiences using Three.JS"
-        }
-        this.ui = new CanvasUI( content, config );
+        this.ui = new CanvasUI(  );
+        this.ui.updateElement("body", "Hello World" );
+        this.ui.update();
+        this.ui.mesh.position.set( 0, 1.5, -1.2 );
+        this.scene.add( this.ui.mesh );
     }
     
     setupXR(){
@@ -62,16 +58,7 @@ class App{
         
         const self = this;
         
-        function onSessionStart(){
-            self.ui.mesh.position.set( 0, 1.5, -1.2 );
-            self.camera.attach( self.ui.mesh );
-        }
-        
-        function onSessionEnd(){
-            self.camera.remove( self.ui.mesh );
-        }
-        
-        const btn = new VRButton( this.renderer, { onSessionStart, onSessionEnd } );
+        const btn = new VRButton( this.renderer );
         
         this.renderer.setAnimationLoop( this.render.bind(this) );
     }
@@ -83,7 +70,6 @@ class App{
     }
     
 	render( ) {   
-        if ( this.renderer.xr.isPresenting ) this.ui.update();
         this.renderer.render( this.scene, this.camera );
     }
 }
