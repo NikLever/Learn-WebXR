@@ -1,8 +1,8 @@
-import * as THREE from '../../../libs/three/three.module.js';
-import { BoxLineGeometry } from '../../../libs/three/jsm/BoxLineGeometry.js';
-import { XRControllerModelFactory } from '../../../libs/three/jsm/XRControllerModelFactory.js';
-import { CanvasUI } from '../../../libs/CanvasUI.js'
-import { VRButton } from '../../../libs/VRButton.js';
+import * as THREE from '../../libs/three/three.module.js';
+import { BoxLineGeometry } from '../../libs/three/jsm/BoxLineGeometry.js';
+import { XRControllerModelFactory } from '../../libs/three/jsm/XRControllerModelFactory.js';
+import { CanvasUI } from '../../libs/CanvasUI.js'
+import { VRButton } from '../../libs/VRButton.js';
 
 class App{
 	constructor(){
@@ -47,24 +47,48 @@ class App{
     }
     
     createUI() {
-        function onChanged( txt ){
-            console.log( `message changed: ${txt}`);
+        const self = this;
+        
+        function onPrev(){
+            const msg = "Prev pressed";
+            console.log(msg);
+            self.ui.updateElement( "info", msg );
         }
         
-        function onEnter( txt ){
-            console.log(`message enter: ${txt}`);
+        function onStop(){
+            const msg = "Stop pressed";
+            console.log(msg);
+            self.ui.updateElement( "info", msg );
+        }
+        
+        function onNext(){
+            const msg = "Next pressed";
+            console.log(msg);
+            self.ui.updateElement( "info", msg );
+        }
+        
+        function onContinue(){
+            const msg = "Continue pressed";
+            console.log(msg);
+            self.ui.updateElement( "info", msg );
         }
         
         const config = {
-            renderer: this.renderer,
-            panelSize: { width: 1.6, height: 0.4 },
+            panelSize: { width: 2, height: 0.5 },
             height: 128,
-            message: { type: "input-text", position: { left: 10, top: 8 }, height: 56, width: 492, backgroundColor: "#ccc", fontColor: "#000", onChanged, onEnter },
-            label: { type: "text", position: { top: 64 }}
+            info: { type: "text", position:{ left: 6, top: 6 }, width: 500, height: 58, backgroundColor: "#aaa", fontColor: "#000" },
+            prev: { type: "button", position:{ top: 64, left: 0 }, width: 64, fontColor: "#bb0", hover: "#ff0", onSelect: onPrev },
+            stop: { type: "button", position:{ top: 64, left: 64 }, width: 64, fontColor: "#bb0", hover: "#ff0", onSelect: onStop },
+            next: { type: "button", position:{ top: 64, left: 128 }, width: 64, fontColor: "#bb0", hover: "#ff0", onSelect: onNext },
+            continue: { type: "button", position:{ top: 70, right: 10 }, width: 200, height: 52, fontColor: "#fff", backgroundColor: "#1bf", hover: "#3df", onSelect: onContinue },
+            renderer: this.renderer
         }
         const content = {
-            message: "",
-            label: "Select the panel above."
+            info: "",
+            prev: "<path>M 10 32 L 54 10 L 54 54 Z</path>",
+            stop: "<path>M 50 15 L 15 15 L 15 50 L 50 50 Z<path>",
+            next: "<path>M 54 32 L 10 10 L 10 54 Z</path>",
+            continue: "Continue"
         }
         this.ui = new CanvasUI( content, config );
     }
@@ -75,7 +99,7 @@ class App{
         const self = this;
         
         function onSessionStart(){
-            self.ui.mesh.position.set( 0, 1.5, -2 );
+            self.ui.mesh.position.set( 0, 1, -3 );
             self.scene.add( self.ui.mesh );
         }
         
@@ -84,7 +108,7 @@ class App{
         }
         
         const btn = new VRButton( this.renderer, { onSessionStart, onSessionEnd } );
-        
+
         const controllerModelFactory = new XRControllerModelFactory();
 
         // controller
@@ -113,6 +137,8 @@ class App{
         this.controller.add( line.clone() );
         this.controller1.add( line.clone() );
         
+        this.selectPressed = false;
+        
         this.renderer.setAnimationLoop( this.render.bind(this) );
     }
     
@@ -123,7 +149,9 @@ class App{
     }
     
 	render( ) {   
-        if ( this.renderer.xr.isPresenting ) this.ui.update();
+        if ( this.renderer.xr.isPresenting ){
+            this.ui.update();
+        }
         this.renderer.render( this.scene, this.camera );
     }
 }

@@ -1,7 +1,7 @@
-import * as THREE from '../../../libs/three/three.module.js';
-import { BoxLineGeometry } from '../../../libs/three/jsm/BoxLineGeometry.js';
-import { CanvasUI } from '../../../libs/CanvasUI.js'
-import { VRButton } from '../../../libs/VRButton.js';
+import * as THREE from '../../libs/three/three.module.js';
+import { BoxLineGeometry } from '../../libs/three/jsm/BoxLineGeometry.js';
+import { CanvasUI } from '../../libs/CanvasUI.js'
+import { VRButton } from '../../libs/VRButton.js';
 
 class App{
 	constructor(){
@@ -46,7 +46,7 @@ class App{
     }
     
     createUI() {
-        const css = {
+        const config = {
             header:{
                 type: "text",
                 position:{ top:0 },
@@ -72,7 +72,7 @@ class App{
             main: "This is the main text",
             footer: "Footer"
         }
-        this.ui = new CanvasUI( content, css );
+        this.ui = new CanvasUI( content, config );
     }
     
     setupXR(){

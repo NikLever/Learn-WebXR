@@ -81,14 +81,6 @@ class App{
 			function ( gltf ) {
 				const object = gltf.scene.children[5];
 				
-				/*object.traverse(function(child){
-					if (child.isMesh){
-                        child.material.metalness = 0;
-                        child.material.roughness = 1;
-						child.castShadow = true;
-					}
-				});*/
-				
 				const options = {
 					object: object,
 					speed: 0.5,
