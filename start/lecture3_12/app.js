@@ -81,14 +81,6 @@ class App{
 			function ( gltf ) {
 				const object = gltf.scene.children[5];
 				
-				/*object.traverse(function(child){
-					if (child.isMesh){
-                        child.material.metalness = 0;
-                        child.material.roughness = 1;
-						child.castShadow = true;
-					}
-				});*/
-				
 				const options = {
 					object: object,
 					speed: 0.5,
@@ -109,7 +101,7 @@ class App{
 				self.knight.object.scale.set(scale, scale, scale); 
 				
                 self.loadingBar.visible = false;
-                self.renderer.setAnimationLoop( self.render.bind(self) );//(timestamp, frame) => { self.render(timestamp, frame); } );
+                self.renderer.setAnimationLoop( self.render.bind(self) );
 			},
 			// called while loading is progressing
 			function ( xhr ) {
@@ -157,7 +149,6 @@ class App{
     
     getHitTestResults( frame ){
         
-
     }
 
     render( timestamp, frame ) {
