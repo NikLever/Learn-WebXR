@@ -112,8 +112,8 @@ class App{
                 
                 const animation = gltf.animations[1];
                 const details = animation.name.split('|');
-                const patient = room.getObjectByName(details[0]);
-                self.mixer = new THREE.AnimationMixer( patient );
+                self.patient = room.getObjectByName(details[0]);
+                self.mixer = new THREE.AnimationMixer( self.patient );
                 const action = self.mixer.clipAction( gltf.animations[1] );
                 action.play();
                         
@@ -157,24 +157,11 @@ class App{
         }
         
         function showOption(){
-            const options = self.questions.questions[questionIndex].options;
-            if (answerIndex<0) answerIndex = 0;
-            if (answerIndex>=options.length) answerIndex = options.length - 1;
-            let display = (answerIndex>0) ? "block" : "none";
-            self.ui.updateCSS("prev", "display", display);
-            display = (answerIndex<(options.length-1)) ? "block" : "none";
-            self.ui.updateCSS("next", "display", display);
-            self.ui.updateElement( "header", "Select a response");
-            self.ui.updateElement("panel", options[answerIndex].text);
+            
         }
         
         function showQuestion(){
-            const question = self.questions.questions[questionIndex];
-            self.ui.updateElement( "header", "Heather");
-            self.ui.updateElement("panel", question.text);
-            self.ui.updateCSS("prev", "display", "none");
-            self.ui.updateCSS("next", "display", "none");
-            self.playSound(`option${questionIndex + 1}`);
+            
         }
         
         function onPrev(){
@@ -188,26 +175,7 @@ class App{
         }
         
         function onContinue(){
-            if (questionIndex<0){
-                //Coming from intro
-                questionIndex = 0;
-                showQuestion()
-                answerIndex = -1;
-            }else if (answerIndex==-1){
-                //Show first option
-                answerIndex = 0;
-                showOption();
-            }else{
-                //Option selected
-                const question = self.questions.questions[questionIndex];
-                questionIndex = question.options[answerIndex].next;
-                if (questionIndex==-1){
-                    showIntro();
-                }else{
-                    answerIndex = -1;
-                    showQuestion();
-                }
-            }
+            
         }
         
         const config = {
@@ -288,17 +256,7 @@ class App{
     }
     
     playSound( sndname ){
-        // load a sound and set it as the Audio object's buffer
-        const sound = this.speech;
         
-        const audioLoader = new THREE.AudioLoader();
-        audioLoader.load( `audio/${sndname}.mp3`, ( buffer ) => {
-            if (sound.isPlaying) sound.stop();
-            sound.setBuffer( buffer );
-            sound.setLoop( false );
-            sound.setVolume( 1.0 );
-            sound.play();
-        });
     }
     
     setupXR(){
