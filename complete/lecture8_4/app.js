@@ -1,13 +1,11 @@
 import * as THREE from '../../libs/three/three.module.js';
 import { GLTFLoader } from '../../libs/three/jsm/GLTFLoader.js';
-import { RGBELoader } from '../../libs/three/jsm/RGBELoader.js';
-import { XRControllerModelFactory } from '../../libs/three/jsm/XRControllerModelFactory.js';
-import { Pathfinding } from '../../libs/three/jsm/three-pathfinding.module.js';
-import { Stats } from '../../libs/stats.module.js';
+import { OrbitControls } from '../../libs/three/jsm/OrbitControls.js';
 import { VRButton } from '../../libs/VRButton.js';
-import { TeleportMesh } from '../../libs/TeleportMesh.js';
+import { XRControllerModelFactory } from '../../libs/three/jsm/XRControllerModelFactory.js';
 import { Player } from '../../libs/Player.js';
 import { LoadingBar } from '../../libs/LoadingBar.js';
+import { Pathfinding } from '../../libs/three/jsm/three-pathfinding.module.js';
 
 class App{
 	constructor(){
@@ -49,8 +47,22 @@ class App{
         this.renderer.outputEncoding = THREE.sRGBEncoding;
 		container.appendChild( this.renderer.domElement );
         this.setEnvironment();
+		
+		this.waypoints = [ 
+			new THREE.Vector3(-15.5, 5.26, 15.68),
+			new THREE.Vector3(13.4, 5.51, 15.74),
+			new THREE.Vector3(13.6, 5.48, -7.96),
+			new THREE.Vector3(-15.4, 5.17, -9.03),
+			new THREE.Vector3(-8.2, 0.25, 8.55),
+			new THREE.Vector3(7.5, 0.18, 8.50),
+			new THREE.Vector3(-22.2, 5.37, -0.15)
+		];
 
-        this.workingMatrix = new THREE.Matrix4();
+        this.tempMatrix = new THREE.Matrix4();
+        this.movePosition = new THREE.Vector3();
+        this.moveSelected = false;
+        
+		//this.controls = new OrbitControls( this.camera, this.renderer.domElement );
 
 		this.clock = new THREE.Clock();
 		
@@ -97,7 +109,7 @@ class App{
 					return;
 				}
 				
-				self.player.newPath(pt, true);
+				self.fred.newPath(pt, true);
 			}	
 		}
 		
@@ -152,29 +164,29 @@ class App{
 						}
 					}
 				});
-                
-                const scale = 0.5;
-                gltf.scene.scale.set( scale, scale, scale );
-                
-                self.initPathfinding();
-                self.loadGhoul();
+			
+				self.pathfinder = new Pathfinding();
+				self.ZONE = 'dungeon';
+				self.pathfinder.setZoneData(self.ZONE, Pathfinding.createZone(self.navmesh.geometry));
+
+				self.loadGhoul();
 			},
 			// called while loading is progressing
 			function ( xhr ) {
 
-				self.loadingBar.progress = (xhr.loaded / xhr.total) * 0.5;
+				self.loadingBar.progress = (xhr.loaded / xhr.total) * 0.33;
 				
 			},
 			// called when loading has errors
 			function ( error ) {
 
-				console.error( error.message );
+				console.log( 'An error happened' );
 
 			}
 		);
-	}	
-    
-    loadGhoul(){
+	}			
+
+	loadGhoul(){
         
 		const loader = new GLTFLoader().setPath(this.assetsPath);
 		const self = this;
@@ -211,7 +223,7 @@ class App{
 
 					const options = {
 						object: object,
-						speed: 0.8,
+						speed: 2,
 						assetsPath: self.assetsPath,
 						loader: loader,
 						anims: anims,
@@ -223,7 +235,7 @@ class App{
 
 					const ghoul = new Player(options);
 
-					const scale = 0.01;
+					const scale = 0.015;
 					ghoul.object.scale.set(scale, scale, scale);
 
 					ghoul.object.position.copy(self.randomWaypoint);
@@ -233,24 +245,91 @@ class App{
 					
 				});
 					
-                self.initGame();
+                self.loadAudio();
 			},
 			// called while loading is progressing
 			function ( xhr ) {
 
-				self.loadingBar.progress = (xhr.loaded / xhr.total) * 0.5 + 0.5;
+				self.loadingBar.progress = (xhr.loaded / xhr.total) * 0.33 + 0.33;
 
 			},
 			// called when loading has errors
 			function ( error ) {
 
-				console.error( error.message );
+				console.log( 'An error happened' );
 
 			}
 		);
 	}
+	
+    loadAudio(){
+        
+        if (this.audioListener===undefined){
+            this.audioListener = new THREE.AudioListener();
+            // add the listener to the camera
+            this.camera.add( this.audioListener );
+            this.sounds = {};
+
+            this.audio = {
+                index: 0,
+                names:["ambient", "shot", "snarl", "swish"]
+            }
+        }
+        
+        const name = this.audio.names[this.audio.index];
+        
+        const loader = new THREE.AudioLoader();
+        const self = this;
+        
+        // load a resource
+        loader.load(
+            // resource URL
+            `sfx/${name}.mp3`,
+
+            // onLoad callback
+            function ( audioBuffer ) {
+                // set the audio object buffer to the loaded object
+                let snd;
+                if ( name==='snarl'){
+                    snd = new THREE.PositionalAudio(self.audioListener);
+                }else{
+                    snd = new THREE.Audio( self.audioListener );
+                    self.scene.add(snd);
+                    if (name==='ambient'){
+                        snd.setLoop( true );
+	                    snd.setVolume( 0.5 );
+                    }
+                }
+                snd.setBuffer( audioBuffer );
+
+                // play the audio
+                if (name==='ambient') snd.play();
+                
+                self.sounds[name] = snd;
+                
+                self.audio.index++;
+                
+                if (self.audio.index >= self.audio.names.length ){
+                    delete self.audio;
+                    self.initGame();
+                }else{
+                    self.loadAudio();
+                }
+            },
+
+            // onProgress callback
+            function ( xhr ) {
+                self.loadingBar.progress = (xhr.loaded / xhr.total) * 0.85 + 0.66 + self.audio.index*0.85;
+            },
+
+            // onError callback
+            function ( err ) {
+                console.log( 'An error happened' );
+            }
+        );    
+    }
     
-    cloneGLTF(gltf){
+	cloneGLTF(gltf){
 	
 		const clone = {
 			animations: gltf.animations,
@@ -294,29 +373,6 @@ class App{
 		return clone;
 
 	}
-    
-    get randomWaypoint(){
-		const index = Math.floor(Math.random()*this.waypoints.length);
-		return this.waypoints[index];
-	}
-    
-    initPathfinding(){
-        this.waypoints = [ 
-			new THREE.Vector3(-15.5, 5.26, 15.68),
-			new THREE.Vector3(13.4, 5.51, 15.74),
-			new THREE.Vector3(13.6, 5.48, -7.96),
-			new THREE.Vector3(-15.4, 5.17, -9.03),
-			new THREE.Vector3(-8.2, 0.25, 8.55),
-			new THREE.Vector3(7.5, 0.18, 8.50),
-			new THREE.Vector3(-22.2, 5.37, -0.15)
-		];
-        
-        this.waypoints.forEach( waypoint => waypoint.multiplyScalar(0.5) );
-        
-        this.pathfinder = new Pathfinding();
-        this.ZONE = 'dungeon';
-        this.pathfinder.setZoneData(this.ZONE, Pathfinding.createZone(this.navmesh.geometry));
-    }
 	
 	initGame(){
 		this.player = this.createPlayer();
@@ -324,66 +380,84 @@ class App{
         //Next location marker
         this.locationMarker = this.createLocationMarker();
         
-        const locations = [
-            new THREE.Vector3(-0.409, 0.086, 4.038),
-            new THREE.Vector3(-0.846, 0.112, 5.777),
-            new THREE.Vector3( 5.220, 0.176, 2.677)
-            //new THREE.Vector3(-0.409, 0.086, 4.038)
-        ]
-        
-        const self = this;
-        
-        this.teleports = [];
-        locations.forEach( location => {
-            const teleport = new TeleportMesh();
-            teleport.position.copy( location );
-            self.scene.add( teleport );
-            self.teleports.push(teleport);
-        })
-        
 		this.setupXR();
 
 		this.loading = false;
 
-		this.renderer.setAnimationLoop( this.render.bind(this) );
+		this.renderer.setAnimationLoop( () => { this.render(); } );
 
 		this.loadingBar.visible = false;
 	}
 	
     createLocationMarker(){
-        const geometry = new THREE.SphereGeometry(0.03, 8, 6);
+        const geometry = new THREE.SphereGeometry(0.1, 8, 6);
         const material = new THREE.MeshBasicMaterial( { color: 0xFF0000 });
         const mesh = new THREE.Mesh( geometry, material );
         mesh.visible = false;
         this.scene.add( mesh );
         return mesh;
     }
+    
+	get randomWaypoint(){
+		const index = Math.floor(Math.random()*this.waypoints.length);
+		return this.waypoints[index];
+	}
+	
+	set showPath(value){
+		if (this.fred.pathLines) this.fred.pathLines.visible = value;
+		this.debug.showPath = value;
+	}
+	
+	get showPath(){
+		return this.debug.showPath;
+	}
+	
+	get framebufferScaleFactor(){
+		return 1;
+	}
+	
+	set framebufferScaleFactor(value){
+		if (this.renderer.xr.isPresenting){
+			alert("Can't set the frame buffer scale factor during a VR session");
+		}else{
+			this.renderer.xr.setFramebufferScaleFactor(value);
+		}
+	}
+    
+    get teleport(){
+        return this.debug.teleport;
+    }
+    
+    set teleport(value){
+        this.debug.teleport = value;
+    }
 	
     buildControllers(){
         const controllerModelFactory = new XRControllerModelFactory();
 
-        const geometry = new THREE.BufferGeometry().setFromPoints( [ new THREE.Vector3( 0, 0, 0 ), new THREE.Vector3( 0, 0, -1 ) ] );
+        //
+        const geometry = new THREE.BufferGeometry().setFromPoints( [ new THREE.Vector3( 0, 0, 0 ), new THREE.Vector3( 0, 0, - 1 ) ] );
 
         const line = new THREE.Line( geometry );
-        line.name = 'ray';
+        line.name = 'line';
 		line.scale.z = 10;
         
-        const controllers = [];
+        this.controllers = [];
         
         for( let i=0; i<=1; i++){
             const controller = this.renderer.xr.getController( i );
+            controller.addEventListener( 'selectstart', (event) => { self.onSelectStart(event); } );
+            controller.addEventListener( 'selectend', (event) => { self.onSelectEnd(event); } );
+            this.player.add( controller );
             controller.userData.index = i;
             controller.userData.selectPressed = false;
             controller.add( line.clone() );
-            controllers.push( controller );
-            this.dolly.add( controller );
+            this.controllers.push( controller );
             
             const grip = this.renderer.xr.getControllerGrip( i );
             grip.add( controllerModelFactory.createControllerModel( grip ) );
-            this.dolly.add( grip );
-        }  
-        
-        return controllers;
+            this.player.add( grip );
+        }   
     }
     
     setupXR(){
@@ -391,80 +465,117 @@ class App{
 
         const self = this;
         
-        function onSelectStart( ){
-            this.userData.selectPressed = true;
-            if (self.locationMarker.visible){
-                const pos = self.locationMarker.position;
-                console.log( `${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}, ${pos.z.toFixed(3)}`);
-            }else if (this.userData.teleport){
-                self.player.object.position.copy( this.userData.teleport.position );
-                self.teleports.forEach( teleport => teleport.fadeOut(0.5) );
-            }
-        }
-        
-        function onSelectEnd( ){
-            this.userData.selectPressed = false;
-        }
-        
-        function onSqueezeStart( ){
-            this.userData.squeezePressed = true;
-            self.teleports.forEach( teleport => teleport.fadeIn(1) );
-        }
-        
-        function onSqueezeEnd( ){
-            this.userData.squeezePressed = false;
-            self.teleports.forEach( teleport => teleport.fadeOut(1) );
-        }
-        
         const btn = new VRButton( this.renderer );
         
-        this.controllers = this.buildControllers();
+        this.buildControllers();
         
-        this.controllers.forEach( controller => {
-            controller.addEventListener( 'selectstart', onSelectStart );
-            controller.addEventListener( 'selectend', onSelectEnd);
-            controller.addEventListener( 'squeezestart', onSqueezeStart );
-            controller.addEventListener( 'squeezeend', onSqueezeEnd );
-        })
+        this.collisionObjects = [];
         
-        this.collisionObjects = [this.navmesh];
-        this.teleports.forEach( teleport => self.collisionObjects.push(teleport.children[0]) );
-                    
+        this.ghouls.forEach( (ghoul) => { self.collisionObjects.push( ghoul.object.children[1] ) });
+        this.collisionObjects.push(this.navmesh);
+    }
+    
+    onSelectStart( event ) {
+        const controller = event.target;
+        
+        this.intersectObjects( controller );
+        controller.userData.selectPressed = true;
+    }
+
+    onSelectEnd( event ) {
+        const controller = event.target;
+        
+        this.intersectObjects( controller );
+        
+        controller.userData.selectPressed = false;
+        
+        const self = this;
+        
+        if (this.moveSelected){
+            if (this.teleport){	
+                this.player.object.position.copy(this.movePosition);
+                this.player.navMeshGroup = this.pathfinder.getGroup(this.ZONE, this.player.object.position);
+				if (this.pathLines) this.scene.remove(this.pathLines);
+				if (this.calculatedPath) this.calculatedPath.length = 0;
+                this.sounds.swish.play();
+            }else{
+                this.player.newPath(this.movePosition);
+            }
+            this.moveSelected = false;
+        }
+        
+        if (this.ghoulTarget){
+            const ghouls = this.ghouls.filter( (npc) => { return npc.object.children[1] === this.ghoulTarget});
+            if (ghouls.length>0){
+                this.sounds.shot.play();
+                const ghoul = ghouls[0];
+                setTimeout( ()=>{
+                    ghoul.add( self.sounds.snarl );
+                    self.sounds.snarl.play();
+                }, 200);
+                ghoul.action = 'die';
+                ghoul.dead = true;
+                ghoul.calculatedPath = null;
+                ghoul.curAction.loop = THREE.LoopOnce;
+                ghoul.curAction.clampWhenFinished = true;
+                ghoul.mixer.addEventListener( 'finished', (e) => { 
+                    //Remove ghoul from scene and arrays
+                    self.scene.remove(ghoul.object); 
+                    self.collisionObjects.splice( self.collisionObjects.indexOf( ghoul.object.children[1], 1));
+                    self.ghouls.splice( self.ghouls.indexOf(ghoul), 1);
+                } );
+            }
+            this.ghoulTarget = null;
+        }
+        
+        this.locationMarker.visible = false;
+    }
+
+    getIntersections( controller ) {
+
+        this.tempMatrix.identity().extractRotation( controller.matrixWorld );
+
+        this.raycaster.ray.origin.setFromMatrixPosition( controller.matrixWorld );
+        this.raycaster.ray.direction.set( 0, 0, - 1 ).applyMatrix4( this.tempMatrix );
+
+        return this.raycaster.intersectObjects( this.collisionObjects );
+
     }
 
     intersectObjects( controller ) {
 
-        const line = controller.getObjectByName( 'ray' );
-        this.workingMatrix.identity().extractRotation( controller.matrixWorld );
+        const line = controller.getObjectByName( 'line' );
+        const intersections = this.getIntersections( controller );
 
-        this.raycaster.ray.origin.setFromMatrixPosition( controller.matrixWorld );
-        this.raycaster.ray.direction.set( 0, 0, - 1 ).applyMatrix4( this.workingMatrix );
+        if ( intersections.length > 0 ) {
 
-        const intersects = this.raycaster.intersectObjects( this.collisionObjects );
-
-        controller.userData.teleport = undefined;
-        
-        if ( intersects.length > 0 ) {
-
-            const intersect = intersects[ 0 ];
-            line.scale.z = intersect.distance;
+            const intersection = intersections[ 0 ];
+            line.scale.z = intersection.distance;
+            this.locationMarker.position.copy( intersection.point );
+            this.locationMarker.visible = true;
             
-            if (intersect.object === this.navmesh){
+            if (intersection.object === this.navmesh){
                 this.locationMarker.scale.set(1,1,1);
-                this.locationMarker.position.copy( intersect.point );
-                this.locationMarker.visible = true;
-            }else if (intersect.object.parent && intersect.object.parent instanceof TeleportMesh){
-                intersect.object.parent.selected = true;
-                controller.userData.teleport = intersect.object.parent;
+                this.movePosition.copy( intersection.point );
+                this.moveSelected = true;
+            }else{
+                this.ghoulTarget = intersection.object;
+                this.locationMarker.scale.set(0.2,0.2,0.2);
+                this.moveSelected = false;
             }
-    
-        } 
+            
+        } else {
+            this.locationMarker.visible = false;
+            line.scale.z = 10;
+            this.moveSelected = false;
+            this.ghoulTarget = null;
+        }
 
     }
 
     createPlayer(){
         const target = new THREE.Object3D();
-        target.position.set(-3, 0.25, 2); 
+        target.position.set(-6, 0, 0); 
         
         const options = {
 					object: target,
@@ -476,16 +587,13 @@ class App{
 				
 		const player = new Player(options);
            
-        this.dolly = new THREE.Object3D();
-        this.dolly.position.set(0, -0.25, 0);
-        this.dolly.add(this.camera);
-        
         this.dummyCam = new THREE.Object3D();
-        this.camera.add( this.dummyCam );
+        this.dummyCam.position.set(0,0.5,1);
+        this.dummyCam.add(this.camera);
         
-        target.add(this.dolly);
+        target.add(this.dummyCam);
         
-        this.dolly.rotation.y = Math.PI;
+        this.dummyCam.rotation.y = Math.PI;
         
         return player;
     }
@@ -500,22 +608,14 @@ class App{
 		
 		this.stats.update();
         
-        if (this.renderer.xr.isPresenting){
-            this.locationMarker.visible = false;
-
-            this.teleports.forEach( teleport =>{
-                teleport.selected = false;
-                teleport.update();
-            });
-
-            this.controllers.forEach( controller => {
+        this.controllers.forEach( controller => {
+            if ( controller.userData.selectPressed ){
                 self.intersectObjects( controller );
-            })
-
-            this.player.update(dt);
-            
-            this.ghouls.forEach( ghoul => { ghoul.update(dt) });
-        }
+            }
+        })
+        
+        this.player.update(dt);
+		this.ghouls.forEach( ghoul => { ghoul.update(dt) });
 		
 		this.renderer.render(this.scene, this.camera);
 	}

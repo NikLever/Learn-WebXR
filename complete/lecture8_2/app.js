@@ -7,7 +7,7 @@ import { XRControllerModelFactory } from '../../libs/three/jsm/XRControllerModel
 import { Stats } from '../../libs/stats.module.js';
 import { VRButton } from '../../libs/VRButton.js';
 import { LoadingBar } from '../../libs/LoadingBar.js';
-import { CannonHelper } from '../../libs/CannonHelper.js';
+import { RotationalConstraint } from '../../libs/RotationalConstraint.js';
 
 class App{
 	constructor(){
@@ -149,11 +149,17 @@ class App{
 					}
 				});
                 
-                chest.position.z = -4;
-                lid.position.z = -4;
+                chest.position.z += -4;
+                lid.position.z += -4;
                 
                 self.scene.add( chest );
                 self.scene.add( lid );
+                
+                const DEG2RAD = Math.PI/180;
+                
+                lid.userData.constraint = new RotationalConstraint( lid, {
+                    axis: 'x', min: 0, max: 110 * DEG2RAD 
+                });
                 
                 self.objects = { chest, lid };
                 
@@ -174,65 +180,6 @@ class App{
 			}
 		);
 	}	
-    
-    initPhysics( ){
-        const objects = this.objects;
-        const pos = new THREE.Vector3();
-        const quat = new THREE.Quaternion();
-        
-        this.world = new CANNON.World();
-		
-        this.timestep = 1.0/60.0;
-	    this.damping = 0.01;
-		
-        this.world.broadphase = new CANNON.NaiveBroadphase();
-        this.world.gravity.set(0, -10, 0);
-  
-        this.helper = new CannonHelper( this.scene, this.world );
-        
-        const chest = new CANNON.Body({mass: 0});
-        const shape1 = new CANNON.Box( new CANNON.Vec3(0.7, 0.328, 0.404) );
-        chest.addShape(shape1, new CANNON.Vec3(0, 0.328, 0));
-        objects.chest.getWorldPosition( pos );
-        chest.position.set(pos.x, pos.y, pos.z);
-        objects.chest.getWorldQuaternion( quat );
-        chest.quaternion.set( quat.x, quat.y, quat.z, quat.w );
-        const shape2 = new CANNON.Box( new CANNON.Vec3( 0.7, 0.1, 0.2) );
-        chest.addShape( shape2, new CANNON.Vec3(0, 0.5, -0.5) );
-        objects.chest.userData.body = chest;
-        this.world.add(chest);
-        this.helper.addVisual(chest, 0xffaa00);
-        
-        const lid = new CANNON.Body({mass: 5});
-        const shape3 = new CANNON.Box( new CANNON.Vec3(0.62, 0.157, 0.328) );
-        lid.addShape(shape3, new CANNON.Vec3(0, 0.157, 0));
-        objects.lid.getWorldPosition( pos );
-        lid.position.set(pos.x, pos.y, pos.z);
-        objects.lid.getWorldQuaternion( quat );
-        lid.quaternion.set( quat.x, quat.y, quat.z, quat.w );
-        objects.lid.userData.body = lid;
-        this.world.add(lid);
-        this.helper.addVisual(lid, 0xaaff00);
-        
-        const axis = new CANNON.Vec3( 1, 0, 0 );
-        const hinge = new CANNON.HingeConstraint( chest, lid, {
-            pivotA: new CANNON.Vec3(0, 0.656, -0.31 ),
-            axisA: axis,
-            pivotB: new CANNON.Vec3(0, 0, -0.31),
-            axisB: axis
-        });
-        
-        hinge.update();
-        this.world.addConstraint( hinge );
-
-        // Joint body
-        const shape4 = new CANNON.Sphere(0.1);
-        this.jointBody = new CANNON.Body({ mass: 0 });
-        this.jointBody.addShape(shape4);
-        this.jointBody.collisionFilterGroup = 0;
-        this.jointBody.collisionFilterMask = 0;
-        this.world.add(this.jointBody);
-    }
 	
 	initGame(){        
         this.marker = this.createLocationMarker();
@@ -286,22 +233,16 @@ class App{
         this.renderer.xr.enabled = true;
 
         const self = this;
+        const constraint = this.objects.lid.userData.constraint;
         
         function onSelectStart( ){
+            constraint.target = self.marker;
             this.userData.selectPressed = true;
-            if (this.userData.selected){
-                self.addConstraint( self.marker.getWorldPosition( self.workingVec3 ), self.objects.lid, this );
-            }
         }
         
         function onSelectEnd( ){
+            constraint.target = null;
             this.userData.selectPressed = false;
-            const constraint = this.userData.constraint;
-            if (constraint){
-                self.world.removeConstraint(constraint);
-                this.userData.constraint = undefined;
-                self.marker.visible = false;
-            }
         }
         
         const btn = new VRButton( this.renderer );
@@ -320,19 +261,6 @@ class App{
         this.collisionObjects = [];
                     
     }
-    
-    addConstraint(pos, obj, controller){
-        const pivot = pos.clone();
-        obj.worldToLocal(pivot);
-        
-        this.jointBody.position.copy(pos);
- 
-        const constraint = new CANNON.PointToPointConstraint(obj.userData.body, pivot, this.jointBody, new CANNON.Vec3(0,0,0));
-
-        this.world.addConstraint(constraint);
-        
-        controller.userData.constraint = constraint;
-    }
 
      handleController( controller ){
          
@@ -344,24 +272,23 @@ class App{
         this.raycaster.ray.direction.set( 0, 0, - 1 ).applyMatrix4( this.workingMat4 );
 
         const intersects = this.raycaster.intersectObject( this.objects.lid );
-
-        if (intersects.length>0){
-            this.marker.position.copy(intersects[0].point);
-            this.marker.visible = true;
-            controller.children[0].scale.z = intersects[0].distance;
-            controller.userData.selected = true;
-        }else if ( controller.userData.selected ){
-            this.marker.visible = false;
-            controller.userData.selected = false;
-        }
+        const constraint = this.objects.lid.userData.constraint;
          
-        if ( controller.userData.selectPressed ){
-            const constraint = controller.userData.constraint;
-            if (constraint){
-                this.jointBody.position.copy( this.marker.getWorldPosition( this.origin ) );
-                constraint.update(); 
+        if (intersects.length>0 && intersects[0].distance<0.1){
+            const intersect = intersects[0];
+            this.marker.position.copy( intersect.point );
+            this.marker.visible = true;
+            controller.children[0].scale.z = intersect.distance;
+            controller.userData.selected = true;
+            
+        }else if ( controller.userData.selected ){
+            controller.userData.selected = false;
+            this.marker.visible = false;
+            if (constraint.target){
+                constraint.target = null;
             }
         }
+         
     }
     
 	render(){
@@ -383,18 +310,7 @@ class App{
 		
         this.renderer.render(this.scene, this.camera);
         
-        if (this.world){
-            this.world.step(this.timestep);
-            const lid = this.objects.lid;
-            const q = lid.userData.body.quaternion;
-            const p = lid.userData.body.position;
-            lid.position.set( p.x, p.y, p.z )
-            lid.quaternion.set( q.x, q.y, q.z, q.w );
-            this.helper.update( );
-        }else{
-            this.initPhysics();
-        }
-		
+        this.objects.lid.userData.constraint.update();	
 	}
 }
 
