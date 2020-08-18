@@ -149,8 +149,8 @@ class App{
 					}
 				});
                 
-                chest.position.z += -4;
-                lid.position.z += -4;
+                chest.position.z += -1;
+                lid.position.z += -1;
                 
                 self.scene.add( chest );
                 self.scene.add( lid );
