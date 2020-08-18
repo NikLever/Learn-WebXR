@@ -68,7 +68,7 @@ class Player{
             return;
         }
         
-		console.log(`New path to ${pt.x.toFixed(1)}, ${pt.y.toFixed(2)}, ${pt.z.toFixed(2)}`);	
+		//console.log(`New path to ${pt.x.toFixed(1)}, ${pt.y.toFixed(2)}, ${pt.z.toFixed(2)}`);	
 
 		const targetGroup = this.pathfinder.getGroup(this.ZONE, pt);
 		const closestTargetNode = this.pathfinder.getClosestNode(pt, this.ZONE, targetGroup);
