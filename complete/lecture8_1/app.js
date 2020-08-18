@@ -61,53 +61,19 @@ class App{
 		this.loadEnvironment();
         
 		this.raycaster = new THREE.Raycaster();
-    	this.renderer.domElement.addEventListener( 'click', raycast, false );
-			
+    		
     	this.loading = true;
     	
-    	const self = this;
-    	const mouse = { x:0, y:0 };
-    	
-    	function raycast(e){
-            //None VR movement
-    		if ( self.loading || self.renderer.xr.isPresenting ) return;
-    		
-			mouse.x = ( e.clientX / window.innerWidth ) * 2 - 1;
-			mouse.y = - ( e.clientY / window.innerHeight ) * 2 + 1;
-
-			//2. set the picking ray from the camera position and mouse coordinates
-			self.raycaster.setFromCamera( mouse, self.camera );    
-
-			//3. compute intersections
-			const intersects = self.raycaster.intersectObject( self.navmesh );
-			
-			if (intersects.length>0){
-				const pt = intersects[0].point;
-				
-				// Teleport on ctrl/cmd click or RMB.
-				if (e.metaKey || e.ctrlKey || e.button === 2) {
-					const player = self.fred.object;
-					player.position.copy(pt);
-					self.fred.navMeshGroup = self.pathfinder.getGroup(self.ZONE, player.position);
-					const closestNode = self.pathfinder.getClosestNode(player.position, self.ZONE, self.fred.navMeshGroup);
-					if (self.pathLines) self.scene.remove(self.pathLines);
-					if (self.calculatedPath) self.calculatedPath.length = 0;
-					self.fred.action = 'idle';
-					return;
-				}
-				
-				self.player.newPath(pt, true);
-			}	
-		}
-		
-		window.addEventListener('resize', function(){ 
-			self.camera.aspect = window.innerWidth / window.innerHeight;
-    		self.camera.updateProjectionMatrix();
-
-    		self.renderer.setSize( window.innerWidth, window.innerHeight );  
-    	});
+		window.addEventListener('resize', this.render.bind(this));
 	}
 	
+    resize(){
+        this.camera.aspect = window.innerWidth / window.innerHeight;
+        this.camera.updateProjectionMatrix();
+
+        this.renderer.setSize( window.innerWidth, window.innerHeight ); 
+    }
+    
     setEnvironment(){
         const loader = new RGBELoader().setDataType( THREE.UnsignedByteType );
         const pmremGenerator = new THREE.PMREMGenerator( this.renderer );
@@ -137,7 +103,8 @@ class App{
 			'dungeon.glb',
 			// called when the resource is loaded
 			function ( gltf ) {
-
+                const scale = 0.5;
+                
 				self.scene.add( gltf.scene );
 				
 				gltf.scene.traverse(function (child) {
@@ -145,6 +112,8 @@ class App{
 						if (child.name=="Navmesh"){
 							child.material.visible = false;
 							self.navmesh = child;
+                            child.geometry.scale(scale, scale, scale);
+                            child.scale.set(2,2,2);
 						}else{
 							child.castShadow = false;
 							child.receiveShadow = true;
@@ -152,7 +121,6 @@ class App{
 					}
 				});
                 
-                const scale = 0.5;
                 gltf.scene.scale.set( scale, scale, scale );
                 
                 self.initGame();
@@ -174,9 +142,6 @@ class App{
 	
 	initGame(){
 		this.player = this.createPlayer();
-        
-        //Next location marker
-        this.locationMarker = this.createLocationMarker();
         
         const locations = [
             new THREE.Vector3(-0.409, 0.086, 4.038),
@@ -219,9 +184,7 @@ class App{
 		this.loadingBar.visible = false;
 	}
 	
-    createLocationMarker(){
-        const geometry = new THREE.SphereGeometry(0.1, 8, 6);
-        const material = new THREE.MeshBasicMaterial( { color: 0xFF0000 });
+    createMarker(geometry, material){
         const mesh = new THREE.Mesh( geometry, material );
         mesh.visible = false;
         this.scene.add( mesh );
@@ -237,6 +200,9 @@ class App{
         line.name = 'ray';
 		line.scale.z = 10;
         
+        const geometry2 = new THREE.SphereGeometry(0.03, 8, 6);
+        const material = new THREE.MeshBasicMaterial( { color: 0xFF0000 });
+        
         const controllers = [];
         
         for( let i=0; i<=1; i++){
@@ -244,6 +210,7 @@ class App{
             controller.userData.index = i;
             controller.userData.selectPressed = false;
             controller.add( line.clone() );
+            controller.userData.marker = this.createMarker( geometry2, material );
             controllers.push( controller );
             this.dolly.add( controller );
             
@@ -265,8 +232,8 @@ class App{
             if (this.userData.teleport){
                 self.player.object.position.copy( this.userData.teleport.position );
                 self.teleports.forEach( teleport => teleport.fadeOut(0.5) );
-            }else if (self.locationMarker.visible){
-                const pos = self.locationMarker.position;
+            }else if (this.userData.marker.visible){
+                const pos = this.userData.marker.position;
                 console.log( `${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}, ${pos.z.toFixed(3)}`);
             }
         }
@@ -310,7 +277,9 @@ class App{
         this.raycaster.ray.direction.set( 0, 0, - 1 ).applyMatrix4( this.workingMatrix );
 
         const intersects = this.raycaster.intersectObjects( this.collisionObjects );
-
+        const marker = controller.userData.marker;
+        marker.visible = false;
+        
         controller.userData.teleport = undefined;
         
         if ( intersects.length > 0 ) {
@@ -319,9 +288,9 @@ class App{
             line.scale.z = intersect.distance;
             
             if (intersect.object === this.navmesh){
-                this.locationMarker.scale.set(1,1,1);
-                this.locationMarker.position.copy( intersect.point );
-                this.locationMarker.visible = true;
+                marker.scale.set(1,1,1);
+                marker.position.copy( intersect.point );
+                marker.visible = true;
             }else if (intersect.object.parent && intersect.object.parent instanceof TeleportMesh){
                 intersect.object.parent.selected = true;
                 controller.userData.teleport = intersect.object.parent;
@@ -370,8 +339,7 @@ class App{
 		this.stats.update();
         
         if (this.renderer.xr.isPresenting){
-            this.locationMarker.visible = false;
-
+            
             this.teleports.forEach( teleport =>{
                 teleport.selected = false;
                 teleport.update();
