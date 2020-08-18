@@ -98,7 +98,6 @@ class App{
 			// called when the resource is loaded
 			function ( gltf ) {
                 
-                
                 self.renderer.setAnimationLoop( self.render.bind(self) );
 			},
 			// called while loading is progressing
@@ -110,7 +109,7 @@ class App{
 			// called when loading has errors
 			function ( error ) {
 
-				console.log( 'An error happened' );
+				console.error( error.message );
 
 			}  
         );
