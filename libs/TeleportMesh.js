@@ -53,7 +53,8 @@ class TeleportMesh extends Mesh{
             uniforms: {
                 uDisplayHeight: { value: 0 },
                 uColor: { value: new Color( 0xFFDD00 )},
-                uSelected: { value: false }
+                uSelected: { value: false },
+                uActive: { value: false }
             },
             vertexShader:`
 varying vec3 vPosition;
@@ -74,13 +75,14 @@ varying mat4 vModelMatrix;
 uniform float uDisplayHeight;
 uniform vec3 uColor;
 uniform bool uSelected;
+uniform bool uActive;
 
 void main(){
     vec3 worldPosition = ( vModelMatrix * vec4( vPosition, 1.0 )).xyz;
     vec3 viewVector = normalize(cameraPosition - worldPosition);
     float glow =  max(0.0, 1.0 - clamp(dot(vWorldNormal, viewVector), 0.0, 1.0));
     float alpha = (1.0 - smoothstep( uDisplayHeight - 0.2, uDisplayHeight, vPosition.y )) * glow;
-    if (uSelected && uDisplayHeight>0.0){
+    if (uSelected && uActive){
         alpha = clamp(alpha + 0.5, 0.0, 1.0);
     }
     gl_FragColor = vec4( uColor, alpha );
@@ -106,13 +108,14 @@ void main(){
         this.startTime = this.clock.getElapsedTime();
         this.duration = time;
         this.material.uniforms.uDisplayHeight.value = 0;
+        this.material.uniforms.uActive.value = false;
         this.state = 'fadeIn';
     }
     
     fadeOut( time ){
         this.startTime = this.clock.getElapsedTime();
         this.duration = time;
-        this.material.uniforms.uDisplayHeight.value = 0;
+        this.material.uniforms.uActive.value = false;
         this.state = 'fadeOut';
     }
     
@@ -134,6 +137,7 @@ void main(){
                 if (delta>1.0){
                     delta = 1.0;
                     this.state = 'active';
+                    this.material.uniforms.uActive.value = true;
                 }
                 this.selected = false;
                 this.material.uniforms.uDisplayHeight.value = (this.height + 0.2) * delta;
@@ -142,15 +146,16 @@ void main(){
                 delta = elapsedTime/this.duration;
                 if (delta>1.0){
                     delta = 1.0;
-                    this.state = 'inactive'; 
+                    this.state = 'inactive';
                 }
                 this.selected = false;
                 this.material.uniforms.uDisplayHeight.value = (this.height + 0.2) * (1.0 - delta);
                 break;
             default:
-                //if (this.material.uniforms.uDisplayHeight.value<this.height) this.selected = false;
                 break;
         }
+        
+        //console.log( this.material.uniforms.uDisplayHeight.value.toFixed(2) );
     }
 }
 

@@ -181,9 +181,12 @@ class App{
         const locations = [
             new THREE.Vector3(-0.409, 0.086, 4.038),
             new THREE.Vector3(-0.846, 0.112, 5.777),
-            new THREE.Vector3( 5.220, 0.176, 2.677)
-            //new THREE.Vector3(-0.409, 0.086, 4.038)
-        ]
+            new THREE.Vector3( 5.220, 0.176, 2.677),
+            new THREE.Vector3( 1.490, 2.305, -1.599),
+            new THREE.Vector3( 7.565, 2.694, 0.008),
+            new THREE.Vector3(-8.417, 2.676, 0.192),
+            new THREE.Vector3(-6.644, 2.600, -4.114)
+        ];
         
         const self = this;
         
@@ -195,6 +198,18 @@ class App{
             self.teleports.push(teleport);
         })
         
+        const waypoints = [
+            new THREE.Vector3(-3.550, 0.263, 4.104),
+            new THREE.Vector3( 2.559, 0.093, 3.052),
+            new THREE.Vector3(-1.291, 0.086, 0.637),
+            new THREE.Vector3( 9.339, 2.689, 0.447),
+            new THREE.Vector3( 7.144, 2.660, 0.783),
+            new THREE.Vector3( 6.816, 2.647, 7.008),
+            new THREE.Vector3(-8.298, 2.636, 0.930),
+            new THREE.Vector3(-1.746, 2.692,-1.986),
+            new THREE.Vector3(-7.422, 2.586, 6.639),
+        ];
+        
 		this.setupXR();
 
 		this.loading = false;
@@ -205,7 +220,7 @@ class App{
 	}
 	
     createLocationMarker(){
-        const geometry = new THREE.SphereGeometry(0.03, 8, 6);
+        const geometry = new THREE.SphereGeometry(0.1, 8, 6);
         const material = new THREE.MeshBasicMaterial( { color: 0xFF0000 });
         const mesh = new THREE.Mesh( geometry, material );
         mesh.visible = false;
@@ -247,12 +262,12 @@ class App{
         
         function onSelectStart( ){
             this.userData.selectPressed = true;
-            if (self.locationMarker.visible){
-                const pos = self.locationMarker.position;
-                console.log( `${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}, ${pos.z.toFixed(3)}`);
-            }else if (this.userData.teleport){
+            if (this.userData.teleport){
                 self.player.object.position.copy( this.userData.teleport.position );
                 self.teleports.forEach( teleport => teleport.fadeOut(0.5) );
+            }else if (self.locationMarker.visible){
+                const pos = self.locationMarker.position;
+                console.log( `${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}, ${pos.z.toFixed(3)}`);
             }
         }
         

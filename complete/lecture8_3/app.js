@@ -146,6 +146,8 @@ class App{
 						if (child.name=="Navmesh"){
 							child.material.visible = false;
 							self.navmesh = child;
+                            child.geometry.scale(0.5, 0.5, 0.5);
+                            self.navmesh.scale.set(2,2,2);
 						}else{
 							child.castShadow = false;
 							child.receiveShadow = true;
@@ -301,18 +303,14 @@ class App{
 	}
     
     initPathfinding(){
-        this.waypoints = [ 
-			new THREE.Vector3(-15.5, 5.26, 15.68),
-			new THREE.Vector3(13.4, 5.51, 15.74),
-			new THREE.Vector3(13.6, 5.48, -7.96),
-			new THREE.Vector3(-15.4, 5.17, -9.03),
-			new THREE.Vector3(-8.2, 0.25, 8.55),
-			new THREE.Vector3(7.5, 0.18, 8.50),
-			new THREE.Vector3(-22.2, 5.37, -0.15)
-		];
-        
-        this.waypoints.forEach( waypoint => waypoint.multiplyScalar(0.5) );
-        
+        this.waypoints = [
+            new THREE.Vector3( 8.689, 2.687, 0.349),
+            new THREE.Vector3( 0.552, 2.589,-2.122),
+            new THREE.Vector3(-7.722, 2.630, 0.298),
+            new THREE.Vector3( 2.238, 2.728, 7.050),
+            new THREE.Vector3( 2.318, 2.699, 6.957),
+            new THREE.Vector3(-1.837, 0.111, 1.782)
+        ];
         this.pathfinder = new Pathfinding();
         this.ZONE = 'dungeon';
         this.pathfinder.setZoneData(this.ZONE, Pathfinding.createZone(this.navmesh.geometry));
@@ -327,8 +325,11 @@ class App{
         const locations = [
             new THREE.Vector3(-0.409, 0.086, 4.038),
             new THREE.Vector3(-0.846, 0.112, 5.777),
-            new THREE.Vector3( 5.220, 0.176, 2.677)
-            //new THREE.Vector3(-0.409, 0.086, 4.038)
+            new THREE.Vector3( 5.220, 0.176, 2.677),
+            new THREE.Vector3( 1.490, 2.305, -1.599),
+            new THREE.Vector3( 7.565, 2.694, 0.008),
+            new THREE.Vector3(-8.417, 2.676, 0.192),
+            new THREE.Vector3(-6.644, 2.600, -4.114)
         ]
         
         const self = this;
@@ -393,12 +394,12 @@ class App{
         
         function onSelectStart( ){
             this.userData.selectPressed = true;
-            if (self.locationMarker.visible){
-                const pos = self.locationMarker.position;
-                console.log( `${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}, ${pos.z.toFixed(3)}`);
-            }else if (this.userData.teleport){
+            if (this.userData.teleport){
                 self.player.object.position.copy( this.userData.teleport.position );
                 self.teleports.forEach( teleport => teleport.fadeOut(0.5) );
+            }else if (self.locationMarker.visible){
+                const pos = self.locationMarker.position;
+                console.log( `${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}, ${pos.z.toFixed(3)}`);
             }
         }
         
