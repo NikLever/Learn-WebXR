@@ -75,17 +75,20 @@ class App{
 		
 		const clip = this.animations[name];
 		
-        delete this.curAction;
-        
-		if (clip!==undefined){
+        if (clip!==undefined){
 			const action = this.mixer.clipAction( clip );
-			action.loop = clip.loop;
-			action.time = 0;
-			this.mixer.stopAllAction();
+            
+            if (name=='Die'){
+                action.loop = THREE.LoopOnce;
+                action.clampWhenFinished = true;
+            }
+            
 			this.actionName = name;
-			this.actionTime = Date.now();
-			action.fadeIn(0.5);	
+			if (this.curAction) this.curAction.crossFadeTo(action, 0.5);
+            
+            action.enabled = true;
 			action.play();
+            
             this.curAction = action;
 		}
 	}
