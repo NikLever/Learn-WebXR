@@ -97,6 +97,9 @@ class App{
         
 		const loader = new GLTFLoader( ).setPath(this.assetsPath);
         const self = this;
+        
+        this.interactables = [];
+        
 		
 		// Load a glTF resource
 		loader.load(
@@ -109,6 +112,8 @@ class App{
 				self.scene.add( gltf.scene );
 				
 				gltf.scene.traverse(function (child) {
+                    let interactable;
+                    
     				if (child.isMesh){
 						if (child.name=="Navmesh"){
 							child.material.visible = false;
@@ -116,6 +121,29 @@ class App{
                             child.geometry.scale(scale, scale, scale);
                             child.scale.set(2,2,2);
 						}else{
+                            if ( child.name == "SD_Prop_Chest_Skull_Lid_01"){
+                                self.interactables.push( new Interactable( child, {
+                                    mode: 'tweens',
+                                    tweens:[{
+                                        target: child.quaternion,
+                                        channel: 'x',
+                                        start: 0,
+                                        end: -0.7,
+                                        duration: 1}
+                                    ]
+                                }));                       
+                            }else if ( child.name == "Door_1"){
+                                self.interactables.push( new Interactable( child, {
+                                    mode: 'tweens',
+                                    tweens:[{
+                                        target: child.quaternion,
+                                        channel: 'z',
+                                        start: 0,
+                                        end: 0.6,
+                                        duration: 1}
+                                    ]
+                                })); 
+                            }
 							child.castShadow = false;
 							child.receiveShadow = true;
 						}
@@ -135,7 +163,7 @@ class App{
 			// called when loading has errors
 			function ( error ) {
 
-				console.log( 'An error happened' );
+				console.error( error.message );
 
 			}
 		);
@@ -233,6 +261,8 @@ class App{
             if (this.userData.teleport){
                 self.player.object.position.copy( this.userData.teleport.position );
                 self.teleports.forEach( teleport => teleport.fadeOut(0.5) );
+            }else if (this.userData.interactable){
+                this.userData.interactable.play();
             }else if (this.userData.marker.visible){
                 const pos = this.userData.marker.position;
                 console.log( `${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}, ${pos.z.toFixed(3)}`);
@@ -266,6 +296,7 @@ class App{
         
         this.collisionObjects = [this.navmesh];
         this.teleports.forEach( teleport => self.collisionObjects.push(teleport.children[0]) );
+        this.interactables.forEach( interactable => self.collisionObjects.push( interactable.mesh ));
                     
     }
 
@@ -282,6 +313,7 @@ class App{
         marker.visible = false;
         
         controller.userData.teleport = undefined;
+        controller.userData.interactable = undefined;
         
         if ( intersects.length > 0 ) {
 
@@ -295,6 +327,10 @@ class App{
             }else if (intersect.object.parent && intersect.object.parent instanceof TeleportMesh){
                 intersect.object.parent.selected = true;
                 controller.userData.teleport = intersect.object.parent;
+            }else{
+                const tmp = this.interactables.filter( interactable => interactable.mesh == intersect.object );
+                
+                if (tmp.length>0) controller.userData.interactable = tmp[0];
             }
     
         } 
@@ -348,7 +384,9 @@ class App{
 
             this.controllers.forEach( controller => {
                 self.intersectObjects( controller );
-            })
+            });
+            
+            this.interactables.forEach( interactable => interactable.update(dt) );
 
             this.player.update(dt);
         }

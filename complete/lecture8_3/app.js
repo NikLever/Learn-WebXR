@@ -6,6 +6,7 @@ import { Pathfinding } from '../../libs/three/jsm/three-pathfinding.module.js';
 import { Stats } from '../../libs/stats.module.js';
 import { VRButton } from '../../libs/VRButton.js';
 import { TeleportMesh } from '../../libs/TeleportMesh.js';
+import { Interactable } from '../../libs/Interactable.js';
 import { Player } from '../../libs/Player.js';
 import { LoadingBar } from '../../libs/LoadingBar.js';
 
@@ -62,52 +63,18 @@ class App{
 		this.loadEnvironment();
         
 		this.raycaster = new THREE.Raycaster();
-    	this.renderer.domElement.addEventListener( 'click', raycast, false );
 			
     	this.loading = true;
-    	
-    	const self = this;
-    	const mouse = { x:0, y:0 };
-    	
-    	function raycast(e){
-            //None VR movement
-    		if ( self.loading || self.renderer.xr.isPresenting ) return;
-    		
-			mouse.x = ( e.clientX / window.innerWidth ) * 2 - 1;
-			mouse.y = - ( e.clientY / window.innerHeight ) * 2 + 1;
-
-			//2. set the picking ray from the camera position and mouse coordinates
-			self.raycaster.setFromCamera( mouse, self.camera );    
-
-			//3. compute intersections
-			const intersects = self.raycaster.intersectObject( self.navmesh );
-			
-			if (intersects.length>0){
-				const pt = intersects[0].point;
-				
-				// Teleport on ctrl/cmd click or RMB.
-				if (e.metaKey || e.ctrlKey || e.button === 2) {
-					const player = self.fred.object;
-					player.position.copy(pt);
-					self.fred.navMeshGroup = self.pathfinder.getGroup(self.ZONE, player.position);
-					const closestNode = self.pathfinder.getClosestNode(player.position, self.ZONE, self.fred.navMeshGroup);
-					if (self.pathLines) self.scene.remove(self.pathLines);
-					if (self.calculatedPath) self.calculatedPath.length = 0;
-					self.fred.action = 'idle';
-					return;
-				}
-				
-				self.player.newPath(pt, true);
-			}	
-		}
 		
-		window.addEventListener('resize', function(){ 
-			self.camera.aspect = window.innerWidth / window.innerHeight;
-    		self.camera.updateProjectionMatrix();
-
-    		self.renderer.setSize( window.innerWidth, window.innerHeight );  
-    	});
+		window.addEventListener('resize', this.render.bind(this));
 	}
+	
+    resize(){
+        this.camera.aspect = window.innerWidth / window.innerHeight;
+        this.camera.updateProjectionMatrix();
+
+        this.renderer.setSize( window.innerWidth, window.innerHeight ); 
+    }
 	
     setEnvironment(){
         const loader = new RGBELoader().setDataType( THREE.UnsignedByteType );
@@ -131,6 +98,8 @@ class App{
         
 		const loader = new GLTFLoader( ).setPath(this.assetsPath);
         const self = this;
+        
+        this.interactables = [];
 		
 		// Load a glTF resource
 		loader.load(
@@ -149,6 +118,29 @@ class App{
                             child.geometry.scale(0.5, 0.5, 0.5);
                             self.navmesh.scale.set(2,2,2);
 						}else{
+                            if ( child.name == "SD_Prop_Chest_Skull_Lid_01"){
+                                self.interactables.push( new Interactable( child, {
+                                    mode: 'tweens',
+                                    tweens:[{
+                                        target: child.quaternion,
+                                        channel: 'x',
+                                        start: 0,
+                                        end: -0.7,
+                                        duration: 1}
+                                    ]
+                                }));                       
+                            }else if ( child.name == "Door_1"){
+                                self.interactables.push( new Interactable( child, {
+                                    mode: 'tweens',
+                                    tweens:[{
+                                        target: child.quaternion,
+                                        channel: 'z',
+                                        start: 0,
+                                        end: 0.6,
+                                        duration: 1}
+                                    ]
+                                })); 
+                            }
 							child.castShadow = false;
 							child.receiveShadow = true;
 						}
@@ -318,10 +310,7 @@ class App{
 	
 	initGame(){
 		this.player = this.createPlayer();
-        
-        //Next location marker
-        this.locationMarker = this.createLocationMarker();
-        
+                
         const locations = [
             new THREE.Vector3(-0.409, 0.086, 4.038),
             new THREE.Vector3(-0.846, 0.112, 5.777),
@@ -351,9 +340,7 @@ class App{
 		this.loadingBar.visible = false;
 	}
 	
-    createLocationMarker(){
-        const geometry = new THREE.SphereGeometry(0.03, 8, 6);
-        const material = new THREE.MeshBasicMaterial( { color: 0xFF0000 });
+    createMarker(geometry, material){
         const mesh = new THREE.Mesh( geometry, material );
         mesh.visible = false;
         this.scene.add( mesh );
@@ -369,6 +356,9 @@ class App{
         line.name = 'ray';
 		line.scale.z = 10;
         
+        const geometry2 = new THREE.SphereGeometry(0.03, 8, 6);
+        const material = new THREE.MeshBasicMaterial( { color: 0xFF0000 });
+        
         const controllers = [];
         
         for( let i=0; i<=1; i++){
@@ -376,6 +366,7 @@ class App{
             controller.userData.index = i;
             controller.userData.selectPressed = false;
             controller.add( line.clone() );
+            controller.userData.marker = this.createMarker( geometry2, material );
             controllers.push( controller );
             this.dolly.add( controller );
             
@@ -397,8 +388,10 @@ class App{
             if (this.userData.teleport){
                 self.player.object.position.copy( this.userData.teleport.position );
                 self.teleports.forEach( teleport => teleport.fadeOut(0.5) );
-            }else if (self.locationMarker.visible){
-                const pos = self.locationMarker.position;
+            }else if (this.userData.interactable){
+                this.userData.interactable.play();
+            }else if (this.marker.visible){
+                const pos = this.userData.marker.position;
                 console.log( `${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}, ${pos.z.toFixed(3)}`);
             }
         }
@@ -430,7 +423,7 @@ class App{
         
         this.collisionObjects = [this.navmesh];
         this.teleports.forEach( teleport => self.collisionObjects.push(teleport.children[0]) );
-                    
+        this.interactables.forEach( interactable => self.collisionObjects.push( interactable.mesh ));   
     }
 
     intersectObjects( controller ) {
@@ -442,8 +435,11 @@ class App{
         this.raycaster.ray.direction.set( 0, 0, - 1 ).applyMatrix4( this.workingMatrix );
 
         const intersects = this.raycaster.intersectObjects( this.collisionObjects );
+        const marker = controller.userData.marker;
+        marker.visible = false;
 
         controller.userData.teleport = undefined;
+        controller.userData.interactable = undefined;
         
         if ( intersects.length > 0 ) {
 
@@ -451,12 +447,16 @@ class App{
             line.scale.z = intersect.distance;
             
             if (intersect.object === this.navmesh){
-                this.locationMarker.scale.set(1,1,1);
-                this.locationMarker.position.copy( intersect.point );
-                this.locationMarker.visible = true;
+                marker.scale.set(1,1,1);
+                marker.position.copy( intersect.point );
+                marker.visible = true;
             }else if (intersect.object.parent && intersect.object.parent instanceof TeleportMesh){
                 intersect.object.parent.selected = true;
                 controller.userData.teleport = intersect.object.parent;
+            }else{
+                const tmp = this.interactables.filter( interactable => interactable.mesh == intersect.object );
+                
+                if (tmp.length>0) controller.userData.interactable = tmp[0];
             }
     
         } 
@@ -502,8 +502,7 @@ class App{
 		this.stats.update();
         
         if (this.renderer.xr.isPresenting){
-            this.locationMarker.visible = false;
-
+            
             this.teleports.forEach( teleport =>{
                 teleport.selected = false;
                 teleport.update();
@@ -511,7 +510,9 @@ class App{
 
             this.controllers.forEach( controller => {
                 self.intersectObjects( controller );
-            })
+            });
+            
+            this.interactables.forEach( interactable => interactable.update(dt) );
 
             this.player.update(dt);
             

@@ -69,7 +69,9 @@ class Interactable{
         }
     }
     
-    update(){
-        this.tweens.forEach( tween => tween.update() );
+    update(dt){
+        this.tweens.forEach( tween => tween.update(dt) );
     }
 }
+
+export { Interactable };
