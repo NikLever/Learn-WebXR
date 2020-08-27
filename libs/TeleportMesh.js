@@ -105,6 +105,7 @@ void main(){
     }
     
     fadeIn( time ){
+        this.visible = true;
         this.startTime = this.clock.getElapsedTime();
         this.duration = time;
         this.material.uniforms.uDisplayHeight.value = 0;
