@@ -191,7 +191,6 @@ class App{
         const wallLimit = 1.3;
         const speed = 2;
 		let pos = this.dolly.position.clone();
-        const posY = pos.y;
         pos.y += 1;
         
 		let dir = new THREE.Vector3();
@@ -215,8 +214,8 @@ class App{
             pos = this.dolly.getWorldPosition( this.origin );
 		}
 
-        this.dolly.position.y = posY;
-
+        //Enter code here
+        
         //Restore the original rotation
         this.dolly.quaternion.copy( quaternion ); 
 	}
