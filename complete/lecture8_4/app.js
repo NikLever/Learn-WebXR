@@ -1,6 +1,5 @@
 import * as THREE from '../../libs/three/three.module.js';
 import { GLTFLoader } from '../../libs/three/jsm/GLTFLoader.js';
-import { DRACOLoader } from '../../libs/three/jsm/DRACOLoader.js';
 import { RGBELoader } from '../../libs/three/jsm/RGBELoader.js';
 import { XRControllerModelFactory } from '../../libs/three/jsm/XRControllerModelFactory.js';
 import { Pathfinding } from '../../libs/three/jsm/three-pathfinding.module.js';
@@ -10,7 +9,6 @@ import { TeleportMesh } from '../../libs/TeleportMesh.js';
 import { Interactable } from '../../libs/Interactable.js';
 import { Player } from '../../libs/Player.js';
 import { LoadingBar } from '../../libs/LoadingBar.js';
-import { Bullet } from './Bullet.js';
 
 class App{
 	constructor(){
@@ -102,7 +100,6 @@ class App{
         const self = this;
         
         this.interactables = [];
-        this.markables = [];
 		
 		// Load a glTF resource
 		loader.load(
@@ -120,8 +117,6 @@ class App{
 							self.navmesh = child;
                             child.geometry.scale(0.5, 0.5, 0.5);
                             self.navmesh.scale.set(2,2,2);
-                        }else if (child.name == "SD_Prop_Chest_Skull_01"){
-                            self.markables.push( child );
 						}else{
                             if ( child.name == "SD_Prop_Chest_Skull_Lid_01"){
                                 self.interactables.push( new Interactable( child, {
@@ -161,7 +156,7 @@ class App{
 			// called while loading is progressing
 			function ( xhr ) {
 
-				self.loadingBar.progress = (xhr.loaded / xhr.total) * 0.33;
+				self.loadingBar.progress = (xhr.loaded / xhr.total) * 0.5;
 				
 			},
 			// called when loading has errors
@@ -232,12 +227,12 @@ class App{
 					
 				});
 					
-                self.loadGun();
+                self.initGame();
 			},
 			// called while loading is progressing
 			function ( xhr ) {
 
-				self.loadingBar.progress = (xhr.loaded / xhr.total) * 0.33 + 0.33;
+				self.loadingBar.progress = (xhr.loaded / xhr.total) * 0.5 + 0.5;
 
 			},
 			// called when loading has errors
@@ -293,136 +288,6 @@ class App{
 		return clone;
 
 	}
-    
-    loadGun(){
-        
-		const loader = new GLTFLoader().setPath(this.assetsPath);
-        const dracoLoader = new DRACOLoader();
-        dracoLoader.setDecoderPath( '../../libs/three/js/draco/' );
-        loader.setDRACOLoader( dracoLoader );
-        
-		const self = this;
-
-		// Load a GLTF resource
-		loader.load(
-			// resource URL
-			`flare-gun.glb`,
-			// called when the resource is loaded
-			function ( gltf ) {
-				self.gun = gltf.scene;
-                self.gun.position.set(-0.430, 0.877, 3.013);
-                self.gun.rotateX(Math.PI/2);
-                self.scene.add( self.gun );
-                
-                const bullet = gltf.scene.children[0];
-				self.scene.add( bullet );
-                
-                const targets = [];
-                self.ghouls.forEach( ghoul => targets.push( ghoul.object.children[1] ) );
-                
-                self.bullet = new Bullet( bullet, {
-                    gun: self.gun,
-                    targets
-                });
-                
-                self.bullet.addEventListener( 'hit', ev => {
-                    const tmp = self.ghouls.filter( ghoul => ev.hitObject == ghoul.object.children[1] );
-                    if (tmp.length>0){
-                        self.sounds.snarl.play();
-                        const ghoul = tmp[0];
-                        ghoul.action = 'die';
-                        ghoul.dead = true;
-                        ghoul.calculatedPath = null;
-                        ghoul.curAction.loop = THREE.LoopOnce;
-                        ghoul.curAction.clampWhenFinished = true;
-                        ghoul.mixer.addEventListener( 'finished', (e) => { 
-                            self.scene.remove(ghoul.object); 
-                            self.ghouls.splice( self.ghouls.indexOf(ghoul), 1);
-                        } );
-                    }
-                });
-                
-                self.initGame();
-			},
-			// called while loading is progressing
-			function ( xhr ) {
-
-				self.loadingBar.progress = (xhr.loaded / xhr.total) * 0.33 + 0.66;
-
-			},
-			// called when loading has errors
-			function ( error ) {
-
-				console.error( error.message );
-
-			}
-		);
-	}
-    
-    loadAudio(){
-        
-        if (this.audioListener===undefined){
-            this.audioListener = new THREE.AudioListener();
-            // add the listener to the camera
-            this.camera.add( this.audioListener );
-            this.sounds = {};
-
-            this.audio = {
-                index: 0,
-                names:["ambient", "shot", "snarl", "swish"]
-            }
-        }
-        
-        const name = this.audio.names[this.audio.index];
-        
-        const loader = new THREE.AudioLoader();
-        const self = this;
-        
-        // load a resource
-        loader.load(
-            // resource URL
-            `sfx/${name}.mp3`,
-
-            // onLoad callback
-            function ( audioBuffer ) {
-                // set the audio object buffer to the loaded object
-                let snd;
-                if ( name==='snarl'){
-                    snd = new THREE.PositionalAudio(self.audioListener);
-                }else{
-                    snd = new THREE.Audio( self.audioListener );
-                    self.scene.add(snd);
-                    if (name==='ambient'){
-                        snd.setLoop( true );
-	                    snd.setVolume( 0.5 );
-                    }
-                }
-                snd.setBuffer( audioBuffer );
-
-                // play the audio
-                if (name==='ambient') snd.play();
-                
-                self.sounds[name] = snd;
-                
-                self.audio.index++;
-                
-                if (self.audio.index < self.audio.names.length ){
-                    self.loadAudio();
-                }
-            },
-
-            // onProgress callback
-            function ( xhr ) {
-                const peraudio = 0.25/self.audio.length;
-                self.loadingBar.progress = ((xhr.loaded / xhr.total) + self.audio.index) * peraudio + 0.75;
-            },
-
-            // onError callback
-            function ( err ) {
-                console.log( 'An error happened' );
-            }
-        );    
-    }
     
     get randomWaypoint(){
 		const index = Math.floor(Math.random()*this.waypoints.length);
@@ -508,7 +373,6 @@ class App{
             const grip = this.renderer.xr.getControllerGrip( i );
             grip.add( controllerModelFactory.createControllerModel( grip ) );
             this.dolly.add( grip );
-            controller.userData.grip = grip;
         }  
         
         return controllers;
@@ -521,17 +385,12 @@ class App{
         
         function onSelectStart( ){
             this.userData.selectPressed = true;
-            if (this.userData.gun){
-                self.sounds.shot.play();
-                self.bullet.fire();
-            }else if (this.userData.teleport){
+            if (this.userData.teleport){
                 self.player.object.position.copy( this.userData.teleport.position );
-                this.userData.teleport.visible = false;
                 self.teleports.forEach( teleport => teleport.fadeOut(0.5) );
-                self.sounds.swish.play();
             }else if (this.userData.interactable){
                 this.userData.interactable.play();
-            }else if (this.userData.marker.visible){
+            }else if (this.marker.visible){
                 const pos = this.userData.marker.position;
                 console.log( `${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}, ${pos.z.toFixed(3)}`);
             }
@@ -551,11 +410,7 @@ class App{
             self.teleports.forEach( teleport => teleport.fadeOut(1) );
         }
         
-        function onSessionStart(){
-            if (self.sounds === undefined ) self.loadAudio();
-        }
-        
-        const btn = new VRButton( this.renderer, { onSessionStart } );
+        const btn = new VRButton( this.renderer );
         
         this.controllers = this.buildControllers();
         
@@ -568,21 +423,9 @@ class App{
         
         this.collisionObjects = [this.navmesh];
         this.teleports.forEach( teleport => self.collisionObjects.push(teleport.children[0]) );
-        this.interactables.forEach( interactable => self.collisionObjects.push( interactable.mesh )); 
-        this.markables.forEach( markable => self.collisionObjects.push( markable )); 
+        this.interactables.forEach( interactable => self.collisionObjects.push( interactable.mesh ));   
     }
 
-    pickupGun( controller = this.controllers[0] ){
-        this.gun.position.set(0,0,0);
-        this.gun.quaternion.identity();
-        //this.gun.rotateY( -Math.PI/2 )
-        controller.children[0].visible = false;
-        controller.add( this.gun );
-        controller.userData.gun = true;
-        const grip = controller.userData.grip;
-        this.dolly.remove( grip );    
-    }
-    
     intersectObjects( controller ) {
 
         const line = controller.getObjectByName( 'ray' );
@@ -601,23 +444,18 @@ class App{
         if ( intersects.length > 0 ) {
 
             const intersect = intersects[ 0 ];
-
             line.scale.z = intersect.distance;
-
-            const markable = (this.markables.indexOf( intersect.object )!=-1);
-
-            if (intersect.object === this.navmesh || markable){
+            
+            if (intersect.object === this.navmesh){
                 marker.scale.set(1,1,1);
                 marker.position.copy( intersect.point );
                 marker.visible = true;
-            }else if (intersect.object.parent === this.gun){
-                this.pickupGun( controller );
             }else if (intersect.object.parent && intersect.object.parent instanceof TeleportMesh){
                 intersect.object.parent.selected = true;
                 controller.userData.teleport = intersect.object.parent;
             }else{
                 const tmp = this.interactables.filter( interactable => interactable.mesh == intersect.object );
-
+                
                 if (tmp.length>0) controller.userData.interactable = tmp[0];
             }
     
@@ -671,7 +509,7 @@ class App{
             });
 
             this.controllers.forEach( controller => {
-                if ( !controller.userData.gun ) self.intersectObjects( controller );
+                self.intersectObjects( controller );
             });
             
             this.interactables.forEach( interactable => interactable.update(dt) );
@@ -679,8 +517,6 @@ class App{
             this.player.update(dt);
             
             this.ghouls.forEach( ghoul => { ghoul.update(dt) });
-            
-            this.bullet.update(dt);
         }
 		
 		this.renderer.render(this.scene, this.camera);
