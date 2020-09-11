@@ -570,6 +570,10 @@ class App{
         this.teleports.forEach( teleport => self.collisionObjects.push(teleport.children[0]) );
         this.interactables.forEach( interactable => self.collisionObjects.push( interactable.mesh )); 
         this.markables.forEach( markable => self.collisionObjects.push( markable )); 
+        
+        const gunCollider = this.gun.getObjectByName( 'Collider' );
+        gunCollider.material.visible = false;
+        this.collisionObjects.push( gunCollider );
     }
 
     pickupGun( controller = this.controllers[0] ){
