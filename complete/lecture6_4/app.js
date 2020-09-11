@@ -101,7 +101,7 @@ class App{
 		// Load a glTF resource
 		loader.load(
 			// resource URL
-			'college3.glb',
+			'college.glb',
 			// called when the resource is loaded
 			function ( gltf ) {
 
