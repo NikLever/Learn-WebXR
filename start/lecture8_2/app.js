@@ -2,7 +2,6 @@ import * as THREE from '../../libs/three/three.module.js';
 import { GLTFLoader } from '../../libs/three/jsm/GLTFLoader.js';
 import { RGBELoader } from '../../libs/three/jsm/RGBELoader.js';
 import { XRControllerModelFactory } from '../../libs/three/jsm/XRControllerModelFactory.js';
-import { Pathfinding } from '../../libs/three/jsm/three-pathfinding.module.js';
 import { Stats } from '../../libs/stats.module.js';
 import { VRButton } from '../../libs/VRButton.js';
 import { TeleportMesh } from '../../libs/TeleportMesh.js';
@@ -63,9 +62,9 @@ class App{
 		this.loadEnvironment();
         
 		this.raycaster = new THREE.Raycaster();
-			
+    		
     	this.loading = true;
-		
+    	
 		window.addEventListener('resize', this.render.bind(this));
 	}
 	
@@ -75,7 +74,7 @@ class App{
 
         this.renderer.setSize( window.innerWidth, window.innerHeight ); 
     }
-	
+    
     setEnvironment(){
         const loader = new RGBELoader().setDataType( THREE.UnsignedByteType );
         const pmremGenerator = new THREE.PMREMGenerator( this.renderer );
@@ -100,6 +99,7 @@ class App{
         const self = this;
         
         this.interactables = [];
+        
 		
 		// Load a glTF resource
 		loader.load(
@@ -107,133 +107,32 @@ class App{
 			'dungeon.glb',
 			// called when the resource is loaded
 			function ( gltf ) {
-
+                const scale = 0.5;
+                
 				self.scene.add( gltf.scene );
 				
 				gltf.scene.traverse(function (child) {
+                    let interactable;
+                    
     				if (child.isMesh){
 						if (child.name=="Navmesh"){
 							child.material.visible = false;
 							self.navmesh = child;
-                            child.geometry.scale(0.5, 0.5, 0.5);
-                            self.navmesh.scale.set(2,2,2);
-						}else{
-                            if ( child.name == "SD_Prop_Chest_Skull_Lid_01"){
-                                self.interactables.push( new Interactable( child, {
-                                    mode: 'tweens',
-                                    tweens:[{
-                                        target: child.quaternion,
-                                        channel: 'x',
-                                        start: 0,
-                                        end: -0.7,
-                                        duration: 1}
-                                    ]
-                                }));                       
-                            }else if ( child.name == "Door_1"){
-                                self.interactables.push( new Interactable( child, {
-                                    mode: 'tweens',
-                                    tweens:[{
-                                        target: child.quaternion,
-                                        channel: 'z',
-                                        start: 0,
-                                        end: 0.6,
-                                        duration: 1}
-                                    ]
-                                })); 
-                            }
-							child.castShadow = false;
-							child.receiveShadow = true;
+                            child.geometry.scale(scale, scale, scale);
+                            child.scale.set(2,2,2);
 						}
 					}
 				});
                 
-                const scale = 0.5;
                 gltf.scene.scale.set( scale, scale, scale );
                 
-                self.initPathfinding();
-                self.loadGhoul();
-			},
-			// called while loading is progressing
-			function ( xhr ) {
-
-				self.loadingBar.progress = (xhr.loaded / xhr.total) * 0.5;
-				
-			},
-			// called when loading has errors
-			function ( error ) {
-
-				console.error( error.message );
-
-			}
-		);
-	}	
-    
-    loadGhoul(){
-        
-		const loader = new GLTFLoader().setPath(this.assetsPath);
-		const self = this;
-
-		const anims = [
-					{start:81, end:161, name:"idle", loop:true},
-					{start:250, end:290, name:"block", loop:false},
-					{start:300, end:320, name:"gethit", loop:false},
-					{start:340, end:375, name:"die", loop:false},
-					{start:380, end:430, name:"attack", loop:false},
-					{start:470, end:500, name:"walk", loop:true},
-					{start:540, end:560, name:"run", loop:true}
-				];
-		
-		// Load a GLTF resource
-		loader.load(
-			// resource URL
-			`ghoul.glb`,
-			// called when the resource is loaded
-			function ( gltf ) {
-				const gltfs = [gltf];
-				for(let i=0; i<3; i++) gltfs.push(self.cloneGLTF(gltf));
-				
-				self.ghouls = [];
-				
-				gltfs.forEach(function(gltf){
-					const object = gltf.scene.children[0];
-
-					object.traverse(function(child){
-						if (child.isMesh){
-							child.castShadow = true;
-						}
-					});
-
-					const options = {
-						object: object,
-						speed: 0.8,
-						assetsPath: self.assetsPath,
-						loader: loader,
-						anims: anims,
-						clip: gltf.animations[0],
-						app: self,
-						name: 'ghoul',
-						npc: true
-					};
-
-					const ghoul = new Player(options);
-
-					const scale = 0.01;
-					ghoul.object.scale.set(scale, scale, scale);
-
-					ghoul.object.position.copy(self.randomWaypoint);
-					ghoul.newPath(self.randomWaypoint);
-					
-					self.ghouls.push(ghoul);
-					
-				});
-					
                 self.initGame();
 			},
 			// called while loading is progressing
 			function ( xhr ) {
 
-				self.loadingBar.progress = (xhr.loaded / xhr.total) * 0.5 + 0.5;
-
+				self.loadingBar.progress = (xhr.loaded / xhr.total);
+				
 			},
 			// called when loading has errors
 			function ( error ) {
@@ -242,75 +141,11 @@ class App{
 
 			}
 		);
-	}
-    
-    cloneGLTF(gltf){
-	
-		const clone = {
-			animations: gltf.animations,
-			scene: gltf.scene.clone(true)
-		  };
-		
-		const skinnedMeshes = {};
-		
-		gltf.scene.traverse(node => {
-			if (node.isSkinnedMesh) {
-			  skinnedMeshes[node.name] = node;
-			}
-		});
-		
-		const cloneBones = {};
-		const cloneSkinnedMeshes = {};
-		
-		clone.scene.traverse(node => {
-			if (node.isBone) {
-			  cloneBones[node.name] = node;
-			}
-			if (node.isSkinnedMesh) {
-			  cloneSkinnedMeshes[node.name] = node;
-			}
-		});
-		
-		for (let name in skinnedMeshes) {
-			const skinnedMesh = skinnedMeshes[name];
-			const skeleton = skinnedMesh.skeleton;
-			const cloneSkinnedMesh = cloneSkinnedMeshes[name];
-			const orderedCloneBones = [];
-			for (let i = 0; i < skeleton.bones.length; ++i) {
-				const cloneBone = cloneBones[skeleton.bones[i].name];
-				orderedCloneBones.push(cloneBone);
-			}
-			cloneSkinnedMesh.bind(
-				new THREE.Skeleton(orderedCloneBones, skeleton.boneInverses),
-				cloneSkinnedMesh.matrixWorld);
-		}
-		
-		return clone;
-
-	}
-    
-    get randomWaypoint(){
-		const index = Math.floor(Math.random()*this.waypoints.length);
-		return this.waypoints[index];
-	}
-    
-    initPathfinding(){
-        this.waypoints = [
-            new THREE.Vector3( 8.689, 2.687, 0.349),
-            new THREE.Vector3( 0.552, 2.589,-2.122),
-            new THREE.Vector3(-7.722, 2.630, 0.298),
-            new THREE.Vector3( 2.238, 2.728, 7.050),
-            new THREE.Vector3( 2.318, 2.699, 6.957),
-            new THREE.Vector3(-1.837, 0.111, 1.782)
-        ];
-        this.pathfinder = new Pathfinding();
-        this.ZONE = 'dungeon';
-        this.pathfinder.setZoneData(this.ZONE, Pathfinding.createZone(this.navmesh.geometry));
-    }
+	}			
 	
 	initGame(){
 		this.player = this.createPlayer();
-                
+        
         const locations = [
             new THREE.Vector3(-0.409, 0.086, 4.038),
             new THREE.Vector3(-0.846, 0.112, 5.777),
@@ -319,7 +154,7 @@ class App{
             new THREE.Vector3( 7.565, 2.694, 0.008),
             new THREE.Vector3(-8.417, 2.676, 0.192),
             new THREE.Vector3(-6.644, 2.600, -4.114)
-        ]
+        ];
         
         const self = this;
         
@@ -330,6 +165,18 @@ class App{
             self.scene.add( teleport );
             self.teleports.push(teleport);
         })
+        
+        const waypoints = [
+            new THREE.Vector3(-3.550, 0.263, 4.104),
+            new THREE.Vector3( 2.559, 0.093, 3.052),
+            new THREE.Vector3(-1.291, 0.086, 0.637),
+            new THREE.Vector3( 9.339, 2.689, 0.447),
+            new THREE.Vector3( 7.144, 2.660, 0.783),
+            new THREE.Vector3( 6.816, 2.647, 7.008),
+            new THREE.Vector3(-8.298, 2.636, 0.930),
+            new THREE.Vector3(-1.746, 2.692,-1.986),
+            new THREE.Vector3(-7.422, 2.586, 6.639),
+        ];
         
 		this.setupXR();
 
@@ -388,9 +235,9 @@ class App{
             if (this.userData.teleport){
                 self.player.object.position.copy( this.userData.teleport.position );
                 self.teleports.forEach( teleport => teleport.fadeOut(0.5) );
-            }else if (this.userData.interactable){
-                this.userData.interactable.play();
-            }else if (this.marker.visible){
+            }else if( this.userData.interactable ){
+                //Step 4 - call play for the interactable
+            }else if (this.userData.marker.visible){
                 const pos = this.userData.marker.position;
                 console.log( `${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}, ${pos.z.toFixed(3)}`);
             }
@@ -423,7 +270,9 @@ class App{
         
         this.collisionObjects = [this.navmesh];
         this.teleports.forEach( teleport => self.collisionObjects.push(teleport.children[0]) );
-        this.interactables.forEach( interactable => self.collisionObjects.push( interactable.mesh ));   
+        
+        //Step 2 - for each Interactable add the mesh property to the collisionObjects array.
+                    
     }
 
     intersectObjects( controller ) {
@@ -437,7 +286,7 @@ class App{
         const intersects = this.raycaster.intersectObjects( this.collisionObjects );
         const marker = controller.userData.marker;
         marker.visible = false;
-
+        
         controller.userData.teleport = undefined;
         controller.userData.interactable = undefined;
         
@@ -454,11 +303,11 @@ class App{
                 intersect.object.parent.selected = true;
                 controller.userData.teleport = intersect.object.parent;
             }else{
-                const tmp = this.interactables.filter( interactable => interactable.mesh == intersect.object );
+                //Step 3 - is the intersect.object an Interactable
                 
-                if (tmp.length>0) controller.userData.interactable = tmp[0];
+                //If so set the Interactable property of the controllers userData object
             }
-    
+            
         } 
 
     }
@@ -512,11 +361,9 @@ class App{
                 self.intersectObjects( controller );
             });
             
-            this.interactables.forEach( interactable => interactable.update(dt) );
+            //Step 1 call update for each Interactable
 
             this.player.update(dt);
-            
-            this.ghouls.forEach( ghoul => { ghoul.update(dt) });
         }
 		
 		this.renderer.render(this.scene, this.camera);
