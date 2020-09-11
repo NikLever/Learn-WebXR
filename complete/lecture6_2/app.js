@@ -44,6 +44,7 @@ class App{
         this.up = new THREE.Vector3(0,1,0);
         this.origin = new THREE.Vector3();
         this.workingVec3 = new THREE.Vector3();
+        this.workingVec3b = new THREE.Vector3();
         this.workingQuaternion = new THREE.Quaternion();
         this.raycaster = new THREE.Raycaster();
         
@@ -312,12 +313,12 @@ class App{
             this.moveDolly(dt);
             if (this.boardData){
                 const scene = this.scene;
-                const dollyPos = this.dolly.getWorldPosition( new THREE.Vector3() );
+                const dollyPos = this.dolly.getWorldPosition( this.workingVec3 );
                 let boardFound = false;
                 Object.entries(this.boardData).forEach(([name, info]) => {
                     const obj = scene.getObjectByName( name );
                     if (obj !== undefined){
-                        const pos = obj.getWorldPosition( new THREE.Vector3() );
+                        const pos = obj.getWorldPosition( this.workingVec3b );
                         if (dollyPos.distanceTo( pos ) < 3){
                             boardFound = true;
                             if ( this.boardShown !== name) this.showInfoboard( name, info, pos );

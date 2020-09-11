@@ -53,9 +53,6 @@ class App{
 		this.loadingBar = new LoadingBar();
 		
 		this.loadCollege();
-        
-        const self = this;
-        
 	}
 	
     setEnvironment(){
