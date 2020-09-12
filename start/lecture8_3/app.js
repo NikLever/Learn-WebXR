@@ -36,7 +36,6 @@ class App{
 		this.sun.shadow.camera.left = this.sun.shadow.camera.bottom = -lightSize;
 		this.sun.shadow.camera.right = this.sun.shadow.camera.top = lightSize;
 
-        //this.sun.shadow.bias = 0.0039;
         this.sun.shadow.mapSize.width = 1024;
         this.sun.shadow.mapSize.height = 1024;
         
@@ -314,33 +313,16 @@ class App{
                 self.gun.rotateX(Math.PI/2);
                 self.scene.add( self.gun );
                 
-                const bullet = gltf.scene.children[0];
-				self.scene.add( bullet );
+                //Step 1 - move the bullet, children[0] to the scene not the gun
                 
-                const targets = [];
-                self.ghouls.forEach( ghoul => targets.push( ghoul.object.children[1] ) );
                 
-                self.bullet = new Bullet( bullet, {
-                    gun: self.gun,
-                    targets
-                });
+                //Step 2 - collect the ghoul skinned meshes as an array of targets
                 
-                self.bullet.addEventListener( 'hit', ev => {
-                    const tmp = self.ghouls.filter( ghoul => ev.hitObject == ghoul.object.children[1] );
-                    if (tmp.length>0){
-                        self.sounds.snarl.play();
-                        const ghoul = tmp[0];
-                        ghoul.action = 'die';
-                        ghoul.dead = true;
-                        ghoul.calculatedPath = null;
-                        ghoul.curAction.loop = THREE.LoopOnce;
-                        ghoul.curAction.clampWhenFinished = true;
-                        ghoul.mixer.addEventListener( 'finished', (e) => { 
-                            self.scene.remove(ghoul.object); 
-                            self.ghouls.splice( self.ghouls.indexOf(ghoul), 1);
-                        } );
-                    }
-                });
+                
+                //Step 3 - create a Bullet instance
+                
+                
+                //Step 8 - Add a hit event listener
                 
                 self.initGame();
 			},
@@ -522,8 +504,7 @@ class App{
         function onSelectStart( ){
             this.userData.selectPressed = true;
             if (this.userData.gun){
-                self.sounds.shot.play();
-                self.bullet.fire();
+                //Step 7 - Call fire method for gun and sfx shot
             }else if (this.userData.teleport){
                 self.player.object.position.copy( this.userData.teleport.position );
                 this.userData.teleport.visible = false;
@@ -570,6 +551,8 @@ class App{
         this.teleports.forEach( teleport => self.collisionObjects.push(teleport.children[0]) );
         this.interactables.forEach( interactable => self.collisionObjects.push( interactable.mesh )); 
         this.markables.forEach( markable => self.collisionObjects.push( markable )); 
+        
+        //Step 5 - add the gun collider to the collisionObjects
     }
 
     pickupGun( controller = this.controllers[0] ){
@@ -611,7 +594,8 @@ class App{
                 marker.position.copy( intersect.point );
                 marker.visible = true;
             }else if (intersect.object.parent === this.gun){
-                this.pickupGun( controller );
+                //Step 6 - call pickup gun
+                
             }else if (intersect.object.parent && intersect.object.parent instanceof TeleportMesh){
                 intersect.object.parent.selected = true;
                 controller.userData.teleport = intersect.object.parent;
@@ -680,7 +664,8 @@ class App{
             
             this.ghouls.forEach( ghoul => { ghoul.update(dt) });
             
-            this.bullet.update(dt);
+            //Step 4 - update the bullet
+            
         }
 		
 		this.renderer.render(this.scene, this.camera);
