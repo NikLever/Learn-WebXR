@@ -32,14 +32,11 @@ class App{
 		this.sun.shadow.camera.left = this.sun.shadow.camera.bottom = -lightSize;
 		this.sun.shadow.camera.right = this.sun.shadow.camera.top = lightSize;
 
-        //this.sun.shadow.bias = 0.0039;
         this.sun.shadow.mapSize.width = 1024;
         this.sun.shadow.mapSize.height = 1024;
         
 		this.sun.position.set( 0, 10, 10 );
 		this.scene.add( this.sun );
-		
-		this.debug = { showPath:false, teleport: true };
 			
 		this.renderer = new THREE.WebGLRenderer({ antialias: true } );
 		this.renderer.setPixelRatio( window.devicePixelRatio );
@@ -50,17 +47,15 @@ class App{
         this.setEnvironment();
 
         this.workingMatrix = new THREE.Matrix4();
-
 		this.clock = new THREE.Clock();
-		
+		this.raycaster = new THREE.Raycaster();
+        
 		this.stats = new Stats();
 		container.appendChild( this.stats.dom );
 		
 		this.loadingBar = new LoadingBar();
         
 		this.loadEnvironment();
-        
-		this.raycaster = new THREE.Raycaster();
     		
     	this.loading = true;
     	

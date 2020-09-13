@@ -41,7 +41,7 @@ class Bullet extends EventDispatcher{
     
     update(dt){
         if (this.firing){
-            const dist = 5 * dt;
+            const dist = 10 * dt;
             
             let complete = false;
             
@@ -52,7 +52,7 @@ class Bullet extends EventDispatcher{
             if ( intersects.length>0 ){
                 const intersect = intersects[0];
                 
-                console.log( `intersect.distance:${intersect.distance.toFixed(3)} dist:${dist.toFixed(3)}`);
+                //console.log( `intersect.distance:${intersect.distance.toFixed(3)} dist:${dist.toFixed(3)}`);
                 
                 if (intersect.distance < dist){
                     //We have a hit so remove this from the targets array, so we can't hit it again
