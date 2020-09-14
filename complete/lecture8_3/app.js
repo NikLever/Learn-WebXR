@@ -314,7 +314,7 @@ class App{
                 self.gun.rotateX(Math.PI/2);
                 self.scene.add( self.gun );
                 
-                const bullet = gltf.scene.children[0];
+                const bullet = gltf.scene.getObjectByName("Bullet");
 				self.scene.add( bullet );
                 
                 const targets = [];

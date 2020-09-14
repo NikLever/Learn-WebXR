@@ -315,14 +315,13 @@ class App{
                 
                 //Step 1 - move the bullet, children[0] to the scene not the gun
                 
-                
                 //Step 2 - collect the ghoul skinned meshes as an array of targets
-                
                 
                 //Step 3 - create a Bullet instance
                 
                 
                 //Step 8 - Add a hit event listener
+                
                 
                 self.initGame();
 			},
@@ -505,6 +504,7 @@ class App{
             this.userData.selectPressed = true;
             if (this.userData.gun){
                 //Step 7 - Call fire method for gun and sfx shot
+                
             }else if (this.userData.teleport){
                 self.player.object.position.copy( this.userData.teleport.position );
                 this.userData.teleport.visible = false;
@@ -553,6 +553,7 @@ class App{
         this.markables.forEach( markable => self.collisionObjects.push( markable )); 
         
         //Step 5 - add the gun collider to the collisionObjects
+        
     }
 
     pickupGun( controller = this.controllers[0] ){
@@ -595,6 +596,7 @@ class App{
                 marker.visible = true;
             }else if (intersect.object.parent === this.gun){
                 //Step 6 - call pickup gun
+                
                 
             }else if (intersect.object.parent && intersect.object.parent instanceof TeleportMesh){
                 intersect.object.parent.selected = true;
