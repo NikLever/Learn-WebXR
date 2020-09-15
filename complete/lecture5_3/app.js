@@ -11,8 +11,8 @@ class App{
         
         this.clock = new THREE.Clock();
         
-		this.camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.1, 100 );
-		this.camera.position.set( 0, 1.6, 3 );
+		this.camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 100 );
+		this.camera.position.set( 0, 1.6, 0 );
         
 		this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color( 0x505050 );
@@ -29,6 +29,8 @@ class App{
         this.renderer.outputEncoding = THREE.sRGBEncoding;
         
 		container.appendChild( this.renderer.domElement );
+        
+        this.vec3 = new THREE.Vector3();
         
         this.initScene();
         this.setupXR();
@@ -49,6 +51,18 @@ class App{
 					new BoxLineGeometry( 6, 6, 6, 10, 10, 10 ),
 					new THREE.LineBasicMaterial( { color: 0x808080 } )
 				);
+        
+        const geo1 = new THREE.SphereBufferGeometry(0.1, 16, 8);
+        const mat1 = new THREE.MeshStandardMaterial( { color: 0x3333ff } );
+        const mat2 = new THREE.MeshStandardMaterial( { color: 0x33ff33 } );
+        this.materials = [ mat1, mat2 ];
+        this.rsphere = new THREE.Mesh( geo1, mat1 );
+        this.rsphere.position.set( 0.5, 1.6, -1);
+        this.scene.add( this.rsphere );
+        this.lsphere = new THREE.Mesh( geo1, mat1 );
+        this.lsphere.position.set( -0.5, 1.6, -1);
+        this.scene.add( this.lsphere );
+        
         this.room.geometry.translate( 0, 3, 0 );
         this.scene.add( this.room );
     }
@@ -67,21 +81,26 @@ class App{
     
 	render( time, frame ) {
         if ( this.renderer.xr.isPresenting ){
-            if ( this.getInputSources ){
-                const session = this.renderer.xr.getSession();
-
-                const inputSources = session.inputSources;
-
+            const session = this.renderer.xr.getSession();
+            const inputSources = session.inputSources;
+            
+            if ( this.getInputSources ){    
                 const info = [];
                 
                 inputSources.forEach( inputSource => {
                     const gpint = inputSource.gamepad;
                     const axes = gpint.axes;
                     const buttons = gpint.buttons;
-                    const mapping = gpint.mappint;
+                    const mapping = gpint.mapping;
+                    this.useStandard = (mapping == 'xr-standard');
                     const gamepad = { axes, buttons, mapping };
                     const handedness = inputSource.handedness;
                     const profiles = inputSource.profiles;
+                    this.type = "";
+                    profiles.forEach( profile => {
+                        if (profile.indexOf('touchpad')!=-1) this.type = 'touchpad';
+                        if (profile.indexOf('thumbstick')!=-1) this.type = 'thumbstick';
+                    });
                     const targetRayMode = inputSource.targetRayMode;
                     info.push({ gamepad, handedness, profiles, targetRayMode });
                 });
@@ -89,6 +108,22 @@ class App{
                 console.log( JSON.stringify(info) );
                 
                 this.getInputSources = false;
+            }else if (this.useStandard && this.type!=""){
+                inputSources.forEach( inputSource => {
+                    const gp = inputSource.gamepad;
+                    const thumbstick = (this.type=='thumbstick');
+                    const offset = (thumbstick) ? 2 : 0;
+                    const btnIndex = (thumbstick) ? 3 : 2;
+                    const btnPressed = gp.buttons[btnIndex].pressed;
+                    const material = (btnPressed) ? this.materials[1] : this.materials[0];
+                    if ( inputSource.handedness == 'right'){
+                        this.rsphere.position.set( 0.5, 1.6, -1 ).add( this.vec3.set( gp.axes[offset], gp.axes[offset + 1], 0 ));
+                        this.rsphere.material = material;
+                    }else if ( inputSource.handedness == 'left'){
+                        this.lsphere.position.set( -0.5, 1.6, -1 ).add( this.vec3.set( gp.axes[offset], gp.axes[offset + 1], 0 ));
+                        this.lsphere.material = material;
+                    }
+                })
             }
         }
         this.renderer.render( this.scene, this.camera );

@@ -26,9 +26,14 @@ class App{
 		this.renderer.outputEncoding = THREE.sRGBEncoding;
 		container.appendChild( this.renderer.domElement );
         
-        this.labelContainer = this.initLabelContainer();
-        container.appendChild(this.labelContainer);
-
+        const labelContainer = document.createElement('div');
+        labelContainer.style.position = 'absolute';
+        labelContainer.style.top = '0px';
+        labelContainer.style.pointerEvents = 'none';
+        labelContainer.setAttribute('id', 'container');
+        container.appendChild(labelContainer);
+        this.labelContainer = labelContainer();
+        
         this.workingVec3 = new THREE.Vector3();
         this.labels = [];
         this.measurements = [];
@@ -51,12 +56,6 @@ class App{
     getCenterPoint(points) {
         let line = new THREE.Line3(...points)
         return line.getCenter( new THREE.Vector3() );
-    }
-
-    matrixToVector(matrix) {
-        const vec = new THREE.Vector3();
-        vec.setFromMatrixPosition(matrix);
-        return vec;
     }
 
     initLine(point) {
@@ -89,15 +88,6 @@ class App{
         reticle.matrixAutoUpdate = false;
         reticle.visible = false;
         return reticle;
-    }
-
-    initLabelContainer() {
-        const labelContainer = document.createElement('div');
-        labelContainer.style.position = 'absolute';
-        labelContainer.style.top = '0px';
-        labelContainer.style.pointerEvents = 'none';
-        labelContainer.setAttribute('id', 'container');
-        return labelContainer;
     }
 
     getDistance(points) {
@@ -138,23 +128,14 @@ class App{
         
         function onSelect() {
             if (self.reticle.visible){
-                self.measurements.push(self.matrixToVector(self.reticle.matrix));
+                //Step 1 - add the reticle position to the measurments array
+                
                 if (self.measurements.length == 2) {
-                  let distance = Math.round(self.getDistance(self.measurements) * 100);
-
-                  let text = document.createElement('div');
-                  text.className = 'label';
-                  text.style.color = 'rgb(255,255,255)';
-                  text.textContent = distance + ' cm';
-                  document.querySelector('#container').appendChild(text);
-
-                  self.labels.push({div: text, point: self.getCenterPoint(self.measurements)});
-
-                  self.measurements = [];
-                  self.currentLine = null;
+                    //Step 2 - we have a completed line so get its length, create a label and reset the measurements array and currentLine
+                  
                 } else {
-                  self.currentLine = self.initLine(self.measurements[0]);
-                  self.scene.add(self.currentLine);
+                    //Step 3 - create a new line
+                  
                 }
             }
         }
@@ -204,7 +185,8 @@ class App{
             this.reticle.visible = true;
             this.reticle.matrix.fromArray( pose.transform.matrix );
             
-            if (this.currentLine) this.updateLine(this.reticle.matrix, this.currentLine);
+            //Step 4 - if we have an active line then position the end point of the line at the reticle
+        
                 
         } else {
 
@@ -226,10 +208,8 @@ class App{
 
         }
         
-        this.labels.map((label) => {
-            const pos = self.toScreenPosition(label.point, self.renderer.xr.getCamera(self.camera));
-            label.div.style.transform = `translate(-50%, -50%) translate(${pos.x}px,${pos.y}px)`;
-        })
+        //Step 5 - update the labels positions
+        
 
         this.renderer.render( this.scene, this.camera );
     }
