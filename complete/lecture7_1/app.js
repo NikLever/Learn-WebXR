@@ -32,7 +32,7 @@ class App{
         labelContainer.style.pointerEvents = 'none';
         labelContainer.setAttribute('id', 'container');
         container.appendChild(labelContainer);
-        this.labelContainer = labelContainer();
+        this.labelContainer = labelContainer;
         
         this.workingVec3 = new THREE.Vector3();
         this.labels = [];

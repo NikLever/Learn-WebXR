@@ -88,10 +88,10 @@ class App{
                 const info = [];
                 
                 inputSources.forEach( inputSource => {
-                    const gpint = inputSource.gamepad;
-                    const axes = gpint.axes;
-                    const buttons = gpint.buttons;
-                    const mapping = gpint.mapping;
+                    const gp = inputSource.gamepad;
+                    const axes = gp.axes;
+                    const buttons = gp.buttons;
+                    const mapping = gp.mapping;
                     this.useStandard = (mapping == 'xr-standard');
                     const gamepad = { axes, buttons, mapping };
                     const handedness = inputSource.handedness;
@@ -117,10 +117,10 @@ class App{
                     const btnPressed = gp.buttons[btnIndex].pressed;
                     const material = (btnPressed) ? this.materials[1] : this.materials[0];
                     if ( inputSource.handedness == 'right'){
-                        this.rsphere.position.set( 0.5, 1.6, -1 ).add( this.vec3.set( gp.axes[offset], gp.axes[offset + 1], 0 ));
+                        this.rsphere.position.set( 0.5, 1.6, -1 ).add( this.vec3.set( gp.axes[offset], -gp.axes[offset + 1], 0 ));
                         this.rsphere.material = material;
                     }else if ( inputSource.handedness == 'left'){
-                        this.lsphere.position.set( -0.5, 1.6, -1 ).add( this.vec3.set( gp.axes[offset], gp.axes[offset + 1], 0 ));
+                        this.lsphere.position.set( -0.5, 1.6, -1 ).add( this.vec3.set( gp.axes[offset], -gp.axes[offset + 1], 0 ));
                         this.lsphere.material = material;
                     }
                 })
