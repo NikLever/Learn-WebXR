@@ -149,8 +149,8 @@ class App{
         function showIntro(){
             self.ui.updateElement( "header", "Intro");
             self.ui.updateElement("panel", self.questions.intro);
-            self.ui.updateCSS("prev", "display", "none");
-            self.ui.updateCSS("next", "display", "none");
+            self.ui.updateConfig("prev", "display", "none");
+            self.ui.updateConfig("next", "display", "none");
             self.playSound(`intro`); 
             questionIndex = 0;
             answerIndex = -1;
