@@ -40,7 +40,7 @@ class App{
         container.appendChild( this.stats.dom );
         
         this.initScene();
-        this.setupVR();
+        this.setupXR();
         
         window.addEventListener('resize', this.resize.bind(this) );
         
@@ -55,7 +55,7 @@ class App{
         
     }
     
-    setupVR(){
+    setupXR(){
         
     }
     
