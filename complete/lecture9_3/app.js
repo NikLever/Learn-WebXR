@@ -149,8 +149,8 @@ class App{
         function showIntro(){
             self.ui.updateElement( "header", "Intro");
             self.ui.updateElement("panel", self.questions.intro);
-            self.ui.updateCSS("prev", "display", "none");
-            self.ui.updateCSS("next", "display", "none");
+            self.ui.updateConfig("prev", "display", "none");
+            self.ui.updateConfig("next", "display", "none");
             self.playSound(`intro`); 
             questionIndex = 0;
             answerIndex = -1;
@@ -161,9 +161,9 @@ class App{
             if (answerIndex<0) answerIndex = 0;
             if (answerIndex>=options.length) answerIndex = options.length - 1;
             let display = (answerIndex>0) ? "block" : "none";
-            self.ui.updateCSS("prev", "display", display);
+            self.ui.updateConfig("prev", "display", display);
             display = (answerIndex<(options.length-1)) ? "block" : "none";
-            self.ui.updateCSS("next", "display", display);
+            self.ui.updateConfig("next", "display", display);
             self.ui.updateElement( "header", "Select a response");
             self.ui.updateElement("panel", options[answerIndex].text);
         }
@@ -172,8 +172,8 @@ class App{
             const question = self.questions.questions[questionIndex];
             self.ui.updateElement( "header", "Heather");
             self.ui.updateElement("panel", question.text);
-            self.ui.updateCSS("prev", "display", "none");
-            self.ui.updateCSS("next", "display", "none");
+            self.ui.updateConfig("prev", "display", "none");
+            self.ui.updateConfig("next", "display", "none");
             self.playSound(`option${questionIndex + 1}`);
         }
         
@@ -269,6 +269,7 @@ class App{
                 onSelect: onContinue
             }
         }
+        
         const content = {
             header: "Intro",
             panel: self.questions.intro,
