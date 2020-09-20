@@ -347,7 +347,7 @@ class App{
             }
         }
     
-        function onSelectStart( event ) {
+        function onSelect( event ) {
 
             if ( self.ui!==undefined ) self.ui.select( );
 
@@ -357,7 +357,7 @@ class App{
         
         // controller
         this.controller = this.renderer.xr.getController( 0 );
-        this.controller.addEventListener( 'selectstart', onSelectStart );
+        this.controller.addEventListener( 'select', onSelect );
         //this.controller.addEventListener( 'disconnected', onDisconnected );
         this.dolly.add( this.controller );
 
@@ -369,7 +369,7 @@ class App{
         
         // controller
         this.controller1 = this.renderer.xr.getController( 1 );
-        this.controller1.addEventListener( 'selectstart', onSelectStart );
+        this.controller1.addEventListener( 'select', onSelect );
         //this.controller.addEventListener( 'disconnected', onDisconnected );
         this.dolly.add( this.controller1 );
 

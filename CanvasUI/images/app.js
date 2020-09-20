@@ -51,7 +51,7 @@ class App{
             info: { type: "text", position: { top: 300 } }
         }
         const content = {
-            image: "../../assets/promo.jpg",
+            image: "../../assets/promo.png",
             info: "The promo image from the course: Learn to create WebXR, VR and AR, experiences using Three.JS"
         }
         this.ui = new CanvasUI( content, config );

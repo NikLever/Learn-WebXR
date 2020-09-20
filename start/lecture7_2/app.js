@@ -87,6 +87,12 @@ class App{
 				self.scene.add( self.model );
 				
                 //Step 1 - create a mixer and an action
+                const mixer = new THREE.AnimationMixer( self.model );
+                const action = new mixer.clipAction( gltf.animations[0] );
+                action.loop = THREE.LoopOnce;
+                self.action = action;
+                
+                self.mixers.push( mixer );
                 
                 self.loadingBar.visible = false;
                 self.renderer.setAnimationLoop( self.render.bind(self) );
@@ -121,7 +127,11 @@ class App{
         
         function onSelect() {
             //Step 3 - Trigger the action
-            
+            if (!self.action.isRunning()){
+                self.action.time = 0;
+                self.action.enabled = true;
+                self.action.play();
+            }
         }
 
         this.controller = this.renderer.xr.getController( 0 );
@@ -138,6 +148,7 @@ class App{
         if ( !this.renderer.xr.isPresenting) this.model.rotateY( 0.01 );
         
         //Step 2 - update all the mixers
+        this.mixers.forEach( mixer => mixer.update(dt) );
         
         this.renderer.render( this.scene, this.camera );
     }
