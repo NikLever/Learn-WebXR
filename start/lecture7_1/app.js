@@ -129,27 +129,13 @@ class App{
         function onSelect() {
             if (self.reticle.visible){
                 //Step 1 - add the reticle position to the measurments array
-                const pt = new THREE.Vector3();
-                pt.setFromMatrixPosition( self.reticle.matrix );
-                self.measurements.push( pt );
+                
                 if (self.measurements.length == 2) {
                     //Step 2 - we have a completed line so get its length, create a label and reset the measurements array and currentLine
-                    const distance = Math.round( self.getDistance( self.measurements ) * 100 );
-                    
-                    const text = document.createElement('div');
-                    text.className = 'label';
-                    text.style.color = 'rgb(255,255,255)';
-                    text.textContent = distance + 'cm';
-                    document.querySelector('#container').appendChild(text);
-                    
-                    self.labels.push({div: text, point: self.getCenterPoint( self.measurements)});
-                    
-                    self.measurements = [];
-                    self.currentLine = null;
+                
                 } else {
                     //Step 3 - create a new line
-                    self.currentLine = self.initLine( self.measurements[0] );
-                    self.scene.add( self.currentLine );
+                
                 }
             }
         }
@@ -200,7 +186,6 @@ class App{
             this.reticle.matrix.fromArray( pose.transform.matrix );
             
             //Step 4 - if we have an active line then position the end point of the line at the reticle
-            if ( this.currentLine ) this.updateLine( this.reticle.matrix, this.currentLine );
                 
         } else {
 
@@ -223,10 +208,7 @@ class App{
         }
         
         //Step 5 - update the labels positions
-        this.labels.forEach( label => {
-            const pos = self.toScreenPosition( label.point, self.renderer.xr.getCamera( self.camera ));
-            label.div.style.transform = `translate(-50%, -50%) translate( ${pos.x}px, ${pos.y}px)`;
-        })
+        
 
         this.renderer.render( this.scene, this.camera );
     }
