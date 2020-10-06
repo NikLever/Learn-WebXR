@@ -1,5 +1,6 @@
 import * as THREE from '../../libs/three/three.module.js';
 import { GLTFLoader } from '../../libs/three/jsm/GLTFLoader.js';
+import { RGBELoader } from '../../libs/three/jsm/RGBELoader.js';
 import { ARButton } from '../../libs/three/jsm/ARButton.js';
 import { LoadingBar } from '../../libs/LoadingBar.js';
 
@@ -27,6 +28,7 @@ class App{
         this.renderer.outputEncoding = THREE.sRGBEncoding;
 		this.renderer.xr.enabled = true;
 		container.appendChild( this.renderer.domElement );
+        this.setEnvironment();
 		
 		document.body.appendChild( ARButton.createButton( this.renderer, { requiredFeatures: [ 'hit-test' ] } ) );
 
@@ -64,6 +66,24 @@ class App{
         this.loadChair();
 	}
 	
+    setEnvironment(){
+        const loader = new RGBELoader().setDataType( THREE.UnsignedByteType );
+        const pmremGenerator = new THREE.PMREMGenerator( this.renderer );
+        pmremGenerator.compileEquirectangularShader();
+        
+        const self = this;
+        
+        loader.load( '../../assets/hdr/venice_sunset_1k.hdr', ( texture ) => {
+          const envMap = pmremGenerator.fromEquirectangular( texture ).texture;
+          pmremGenerator.dispose();
+
+          self.scene.environment = envMap;
+
+        }, undefined, (err)=>{
+            console.error( 'An error occurred setting the environment');
+        } );
+    }
+    
 	loadChair(){
         
 		const loader = new GLTFLoader( ).setPath(this.assetsPath);
@@ -78,12 +98,8 @@ class App{
 
 				self.scene.add( gltf.scene );
                 self.chair = gltf.scene;
-                gltf.scene.traverse( (child) => {
-                    if (child.isMesh){
-                        child.material.metalness = 0.5;
-                    }
-                })
-                const scale = 0.1;
+        
+                const scale = 0.07;
                 self.chair.scale.set( scale, scale, scale );
                 self.chair.visible = false;
                 
