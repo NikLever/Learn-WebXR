@@ -1,10 +1,8 @@
-//import * as THREE from '../../libs/three/three.module.js';
-import * as THREE from 'https://unpkg.com/three/build/three.module.js';
+import * as THREE from '../../libs/three125/three.module.js';
 import { VRButton } from '../../libs/VRButton.js';
-import { XRControllerModelFactory } from '../../libs/three/jsm/XRControllerModelFactory.js';
-import { XRHandModelFactory } from '../../libs/three/jsm/XRHandModelFactory.js';
-import { OrbitControls } from '../../libs/three/jsm/OrbitControls.js';
-
+import { XRControllerModelFactory } from '../../libs/three125/XRControllerModelFactory.js';
+import { XRHandModelFactory } from '../../libs/three125/XRHandModelFactory.js';
+import { OrbitControls } from '../../libs/three125/OrbitControls.js';
 
 class App{
 	constructor(){
@@ -60,7 +58,7 @@ class App{
     }
     
     setupVR(){
-        const button = new VRButton( this.renderer );
+        const button = new VRButton( this.renderer, { sessionInit:{ optionalFeatures: [ 'local-floor', 'bounded-floor', 'hand-tracking' ] } } );
         
         this.controller1 = this.renderer.xr.getController( 0 );
         this.scene.add( this.controller1 );
@@ -123,14 +121,16 @@ class App{
             handModelFactory.createHandModel( this.hand2, "oculus", { model: "lowpoly" } ),
             handModelFactory.createHandModel( this.hand2, "oculus" )
         ];
+        
         this.handModels.right.forEach( model => {
             model.visible = false;
             this.hand2.add( model );
         } );
 
         this.handModels.right[ this.currentHandModel.right ].visible = true;
-            this.hand2.addEventListener( 'pinchend', evt => {
-                self.cycleHandModel( evt.handedness );
+        
+        this.hand2.addEventListener( 'pinchend', evt => {
+            self.cycleHandModel( evt.handedness );
         } );
 
         //
@@ -145,11 +145,10 @@ class App{
     }
     
     cycleHandModel( hand ) {
-        this.handModels[ hand ][ currentHandModel[ hand ] ].visible = false;
-					currentHandModel[ hand ] = ( currentHandModel[ hand ] + 1 ) % handModels[ hand ].length;
-					handModels[ hand ][ currentHandModel[ hand ] ].visible = true;
-
-				}
+        this.handModels[ hand ][ this.currentHandModel[ hand ] ].visible = false;
+        this.currentHandModel[ hand ] = ( this.currentHandModel[ hand ] + 1 ) % this.handModels[ hand ].length;
+        this.handModels[ hand ][ this.currentHandModel[ hand ] ].visible = true;
+    }
     
     resize(){
         this.camera.aspect = window.innerWidth / window.innerHeight;
