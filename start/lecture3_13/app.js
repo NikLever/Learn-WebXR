@@ -58,6 +58,7 @@ class App{
     }
     
     setupVR(){
+        //Notice added optional feature hand-tracking
         const button = new VRButton( this.renderer, { sessionInit:{ optionalFeatures: [ 'local-floor', 'bounded-floor', 'hand-tracking' ] } } );
         
         this.controller1 = this.renderer.xr.getController( 0 );
@@ -85,65 +86,8 @@ class App{
         this.controller1.add( line.clone() );
 		this.controller2.add( line.clone() );
         
+        //Add hand code here
         
-        //Hands
-        const handModelFactory = new XRHandModelFactory().setPath( "../../assets/" );
-
-        this.handModels = {
-            left: null,
-            right: null
-        };
-        
-        this.currentHandModel = {
-            left: 0,
-            right: 0
-        }
-        
-        // Hand 1
-        this.hand1 = this.renderer.xr.getHand( 0 );
-        this.scene.add( this.hand1 );
-
-        this.handModels.right = [
-            handModelFactory.createHandModel( this.hand1, "boxes" ),
-            handModelFactory.createHandModel( this.hand1, "spheres" ),
-            handModelFactory.createHandModel( this.hand1, "oculus", { model: "lowpoly" } ),
-            handModelFactory.createHandModel( this.hand1, "oculus" )
-        ];
-
-        this.handModels.right.forEach( model => {
-            model.visible = false;
-            this.hand1.add( model );
-        } );
-
-        const self = this;
-        
-		this.handModels.right[ this.currentHandModel.right ].visible = true;
-
-		this.hand1.addEventListener( 'pinchend', evt => {
-            self.cycleHandModel( evt.handedness );
-        } );
-
-        // Hand 2
-        this.hand2 = this.renderer.xr.getHand( 1 );
-        this.scene.add( this.hand2 );
-
-        this.handModels.left = [
-            handModelFactory.createHandModel( this.hand2, "boxes" ),
-            handModelFactory.createHandModel( this.hand2, "spheres" ),
-            handModelFactory.createHandModel( this.hand2, "oculus", { model: "lowpoly" } ),
-            handModelFactory.createHandModel( this.hand2, "oculus" )
-        ];
-        
-        this.handModels.left.forEach( model => {
-            model.visible = false;
-            this.hand2.add( model );
-        } );
-
-        this.handModels.left[ this.currentHandModel.left ].visible = true;
-        
-        this.hand2.addEventListener( 'pinchend', evt => {
-            self.cycleHandModel( evt.handedness );
-        } );
     }
     
     cycleHandModel( hand ) {

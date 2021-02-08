@@ -48,19 +48,7 @@ class App{
     setupXR(){
         this.renderer.xr.enabled = true;
         
-        if ( 'xr' in navigator ) {
-
-			navigator.xr.isSessionSupported( 'immersive-ar' ).then( ( supported ) => {
-
-                if (supported){
-                    const collection = document.getElementsByClassName("ar-button");
-                    [...collection].forEach( el => {
-                        el.style.display = 'block';
-                    });
-                }
-			} );
-            
-		} 
+        //TO DO 1: If navigator includes xr and immersive-ar is supported then show the ar-button class
         
         const self = this;
 
@@ -146,47 +134,7 @@ class App{
 	}			
     
     initAR(){
-        let currentSession = null;
-        const self = this;
-        
-        const sessionInit = { requiredFeatures: [ 'hit-test' ] };
-        
-        
-        function onSessionStarted( session ) {
-
-            session.addEventListener( 'end', onSessionEnded );
-
-            self.renderer.xr.setReferenceSpaceType( 'local' );
-            self.renderer.xr.setSession( session );
-       
-            currentSession = session;
-            
-        }
-
-        function onSessionEnded( ) {
-
-            currentSession.removeEventListener( 'end', onSessionEnded );
-
-            currentSession = null;
-            
-            if (self.chair !== null){
-                self.scene.remove( self.chair );
-                self.chair = null;
-            }
-            
-            self.renderer.setAnimationLoop( null );
-
-        }
-
-        if ( currentSession === null ) {
-
-            navigator.xr.requestSession( 'immersive-ar', sessionInit ).then( onSessionStarted );
-
-        } else {
-
-            currentSession.end();
-
-        }
+        //TO DO 2: Start an AR session
     }
     
     requestHitTestSource(){
