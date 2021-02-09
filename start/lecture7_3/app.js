@@ -50,6 +50,7 @@ class App{
         
         //TO DO 1: If navigator includes xr and immersive-ar is supported then show the ar-button class
         
+        
         const self = this;
 
         this.hitTestSourceRequested = false;
@@ -135,6 +136,7 @@ class App{
     
     initAR(){
         //TO DO 2: Start an AR session
+        
     }
     
     requestHitTestSource(){
