@@ -1,10 +1,10 @@
-import * as THREE from '../../libs/three/three.module.js';
-import { GLTFLoader } from '../../libs/three/jsm/GLTFLoader.js';
-import { DRACOLoader } from '../../libs/three/jsm/DRACOLoader.js';
-import { RGBELoader } from '../../libs/three/jsm/RGBELoader.js';
+import * as THREE from '../../libs/three124/three.module.js';
+import { GLTFLoader } from '../../libs/three124/jsm/GLTFLoader.js';
+import { DRACOLoader } from '../../libs/three124/jsm/DRACOLoader.js';
+import { RGBELoader } from '../../libs/three124/jsm/RGBELoader.js';
 import { LoadingBar } from '../../libs/LoadingBar.js';
 import { Stats } from '../../libs/stats.module.js';
-import { OrbitControls } from '../../libs/three/jsm/OrbitControls.js';
+import { OrbitControls } from '../../libs/three124/jsm/OrbitControls.js';
 
 
 class App{
