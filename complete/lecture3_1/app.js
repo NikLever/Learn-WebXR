@@ -1,9 +1,8 @@
-import * as THREE from '../../libs/three128/three.module.js';
-import { VRButton } from '../../libs/three128/VRButton.js';
-import { BoxLineGeometry } from '../../libs/three128/BoxLineGeometry.js';
-import { Stats } from '../../libs/three128/stats.module.js';
-import { OrbitControls } from '../../libs/three128/OrbitControls.js';
-
+import * as THREE from '../../libs/three/three.module.js';
+import { VRButton } from '../../libs/three/jsm/VRButton.js';
+import { BoxLineGeometry } from '../../libs/three/jsm/BoxLineGeometry.js';
+import { Stats } from '../../libs/three/jsm/stats.module.js';
+import { OrbitControls } from '../../libs/three/jsm/OrbitControls.js';
 
 class App{
 	constructor(){

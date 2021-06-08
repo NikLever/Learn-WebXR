@@ -136,9 +136,9 @@ class App{
                 
                 self.loadingBar.visible = false;
                 
-                self.action = "Idle";
                 const scale = 0.01;
 				self.knight.scale.set(scale, scale, scale); 
+                self.action = "Idle";
                 
                 self.renderer.setAnimationLoop( self.render.bind(self) );
 			},

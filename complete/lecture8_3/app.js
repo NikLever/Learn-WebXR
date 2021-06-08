@@ -3,7 +3,7 @@ import { GLTFLoader } from '../../libs/three/jsm/GLTFLoader.js';
 import { DRACOLoader } from '../../libs/three/jsm/DRACOLoader.js';
 import { RGBELoader } from '../../libs/three/jsm/RGBELoader.js';
 import { XRControllerModelFactory } from '../../libs/three/jsm/XRControllerModelFactory.js';
-import { Pathfinding } from '../../libs/three/jsm/three-pathfinding.module.js';
+import { Pathfinding } from '../../libs/pathfinding/Pathfinding.js';
 import { Stats } from '../../libs/stats.module.js';
 import { VRButton } from '../../libs/VRButton.js';
 import { TeleportMesh } from '../../libs/TeleportMesh.js';

@@ -1,8 +1,8 @@
-import * as THREE from '../../libs/three125/three.module.js';
+import * as THREE from '../../libs/three/jsm/three.module.js';
 import { VRButton } from '../../libs/VRButton.js';
-import { XRControllerModelFactory } from '../../libs/three125/XRControllerModelFactory.js';
-import { XRHandModelFactory } from '../../libs/three125/XRHandModelFactory.js';
-import { OrbitControls } from '../../libs/three125/OrbitControls.js';
+import { XRControllerModelFactory } from '../../libs/three/jsm/XRControllerModelFactory.js';
+import { XRHandModelFactory } from '../../libs/three/jsm/XRHandModelFactory.js';
+import { OrbitControls } from '../../libs/three/jsm/OrbitControls.js';
 
 class App{
 	constructor(){

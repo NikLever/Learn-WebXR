@@ -1,13 +1,15 @@
-import {
-	Vector3,
-	Vector4
-} from '../../../build/three.module.js';
-
 /**
+ * @author renej
  * NURBS utils
  *
  * See NURBSCurve and NURBSSurface.
+ *
  **/
+
+import {
+	Vector3,
+	Vector4
+} from "../three.module.js";
 
 
 /**************************************************************

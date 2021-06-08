@@ -1,9 +1,15 @@
+/**
+ * @author Nell Waliczek / https://github.com/NellWaliczek
+ * @author Brandon Jones / https://github.com/toji
+ */
+
 import {
 	Mesh,
 	MeshBasicMaterial,
 	Object3D,
+	Quaternion,
 	SphereGeometry,
-} from './three.module.js';
+} from "../three.module.js";
 
 import { GLTFLoader } from './GLTFLoader.js';
 
@@ -85,9 +91,10 @@ XRControllerModel.prototype = Object.assign( Object.create( Object3D.prototype )
 
 				} else if ( valueNodeProperty === MotionControllerConstants.VisualResponseProperty.TRANSFORM ) {
 
-					valueNode.quaternion.slerpQuaternions(
+					Quaternion.slerp(
 						minNode.quaternion,
 						maxNode.quaternion,
+						valueNode.quaternion,
 						value
 					);
 
@@ -246,7 +253,7 @@ var XRControllerModelFactory = ( function () {
 						assetPath
 					);
 
-					const cachedAsset = this._assetCache[ controllerModel.motionController.assetUrl ];
+					let cachedAsset = this._assetCache[ controllerModel.motionController.assetUrl ];
 					if ( cachedAsset ) {
 
 						scene = cachedAsset.scene.clone();
@@ -257,7 +264,7 @@ var XRControllerModelFactory = ( function () {
 
 						if ( ! this.gltfLoader ) {
 
-							throw new Error( 'GLTFLoader not set.' );
+							throw new Error( `GLTFLoader not set.` );
 
 						}
 

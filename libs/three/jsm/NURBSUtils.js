@@ -1,15 +1,13 @@
-/**
- * @author renej
- * NURBS utils
- *
- * See NURBSCurve and NURBSSurface.
- *
- **/
-
 import {
 	Vector3,
 	Vector4
-} from "../three.module.js";
+} from '../three.module.js';
+
+/**
+ * NURBS utils
+ *
+ * See NURBSCurve and NURBSSurface.
+ **/
 
 
 /**************************************************************
