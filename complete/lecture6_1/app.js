@@ -194,10 +194,11 @@ class App{
         pos.y += 1;
         
 		let dir = new THREE.Vector3();
+        const q = new THREE.Quaternion();
         //Store original dolly rotation
         const quaternion = this.dolly.quaternion.clone();
         //Get rotation for movement from the headset pose
-        this.dolly.quaternion.copy( this.dummyCam.getWorldQuaternion() );
+        this.dolly.quaternion.copy( this.dummyCam.getWorldQuaternion(q) );
 		this.dolly.getWorldDirection(dir);
         dir.negate();
 		this.raycaster.set(pos, dir);

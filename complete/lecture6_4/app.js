@@ -248,12 +248,13 @@ class App{
         pos.y += 1;
         
 		let dir = new THREE.Vector3();
+        let quaternion, q = new THREE.Quaternion();
         
         if (this.joystick === undefined){
             //Store original dolly rotation
-            const quaternion = this.dolly.quaternion.clone();
+            quaternion = this.dolly.quaternion.clone();
             //Get rotation for movement from the headset pose
-            this.dolly.quaternion.copy( this.dummyCam.getWorldQuaternion() );
+            this.dolly.quaternion.copy( this.dummyCam.getWorldQuaternion(q) );
             this.dolly.getWorldDirection(dir);
             dir.negate();
         }else{
