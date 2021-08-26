@@ -6,7 +6,7 @@ import { CanvasUI } from '../../libs/three125/CanvasUI.js'
 import { ARButton } from '../../libs/ARButton.js';
 import { LoadingBar } from '../../libs/LoadingBar.js';
 import { Player } from '../../libs/three125/Player.js';
-import { ControllerGestures } from '../../libs/three125/ControllerGestures.js';
+import { ControllerGestures } from '../../libs/three125/ControllerGestures.js'; 
 
 class App{
 	constructor(){
