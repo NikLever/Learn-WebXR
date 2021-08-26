@@ -1,7 +1,7 @@
-import * as THREE from '../../libs/three/three.module.js';
-import { GLTFLoader } from '../../libs/three/jsm/GLTFLoader.js';
-import { DRACOLoader } from '../../libs/three/jsm/DRACOLoader.js';
-import { RGBELoader } from '../../libs/three/jsm/RGBELoader.js';
+import * as THREE from '../../libs/three125/three.module.js';
+import { GLTFLoader } from '../../libs/three125/GLTFLoader.js';
+import { DRACOLoader } from '../../libs/three125/DRACOLoader.js';
+import { RGBELoader } from '../../libs/three125/RGBELoader.js';
 import { ARButton } from '../../libs/ARButton.js';
 import { LoadingBar } from '../../libs/LoadingBar.js';
 

@@ -1,5 +1,5 @@
-import * as THREE from '../../libs/three/three.module.js';
-import { BufferGeometryUtils } from '../../libs/three/jsm/BufferGeometryUtils.js';
+import * as THREE from '../../libs/three125/three.module.js';
+import { BufferGeometryUtils } from '../../libs/three125/BufferGeometryUtils.js';
 import { ARButton } from '../../libs/ARButton.js';
 
 class App{
