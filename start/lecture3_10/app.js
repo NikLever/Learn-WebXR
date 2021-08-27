@@ -1,13 +1,13 @@
-import * as THREE from '../../libs/three/three.module.js';
-import { OrbitControls } from '../../libs/three/jsm/OrbitControls.js';
-import { GLTFLoader } from '../../libs/three/jsm/GLTFLoader.js';
+import * as THREE from '../../libs/three125/three.module.js';
+import { OrbitControls } from '../../libs/three125/OrbitControls.js';
+import { GLTFLoader } from '../../libs/three125/GLTFLoader.js';
 import { Stats } from '../../libs/stats.module.js';
-import { CanvasUI } from '../../libs/CanvasUI.js'
+import { CanvasUI } from '../../libs/three125/CanvasUI.js'
 import { ARButton } from '../../libs/ARButton.js';
 import {
 	Constants as MotionControllerConstants,
 	fetchProfile
-} from '../../libs/three/jsm/motion-controllers.module.js';
+} from '../../libs/three125/motion-controllers.module.js';
 
 const DEFAULT_PROFILES_PATH = 'https://cdn.jsdelivr.net/npm/@webxr-input-profiles/assets@1.0/dist/profiles';
 const DEFAULT_PROFILE = 'generic-trigger';

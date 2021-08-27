@@ -1,5 +1,5 @@
-import * as THREE from '../../libs/three/three.module.js';
-import { OrbitControls } from '../../libs/three/jsm/OrbitControls.js';
+import * as THREE from '../../libs/three125/three.module.js';
+import { OrbitControls } from '../../libs/three125/OrbitControls.js';
 import { Stats } from '../../libs/stats.module.js';
 import { ARButton } from '../../libs/ARButton.js';
 

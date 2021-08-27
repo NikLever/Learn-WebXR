@@ -72,7 +72,7 @@ class App{
     loadCamera(){
 	    const loader = new GLTFLoader().setPath(this.assetsPath);
         const dracoLoader = new DRACOLoader();
-        dracoLoader.setDecoderPath( '../../libs/three/js/draco/' );
+        dracoLoader.setDecoderPath( '../../libs/three125/draco/' );
         loader.setDRACOLoader( dracoLoader );
 		const self = this;
 		
