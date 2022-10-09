@@ -308,6 +308,7 @@ class App{
 			// resource URL
 			`flash-light.glb`,
 			// called when the resource is loaded
+            //Step 1 
 			 ( gltf ) => {
                 const flashLight = new THREE.Group();
                 const flashLightMesh = gltf.scene.children[2];
@@ -521,9 +522,8 @@ class App{
         
         function onSelectStart( ){
             this.userData.selectPressed = true;
-            if (this.userData.flashLight){
-                self.spotlight.visible = true;
-            }else if (this.userData.teleport){
+            //Add Step 4 here
+            if (this.userData.teleport){
                 self.player.object.position.copy( this.userData.teleport.position );
                 this.userData.teleport.visible = false;
                 self.teleports.forEach( teleport => teleport.fadeOut(0.5) );
@@ -538,7 +538,7 @@ class App{
         
         function onSelectEnd( ){
             this.userData.selectPressed = false;
-            if (self.spotlight) self.spotlight.visible = false;
+            //Add Step 4 part 2 here
         }
         
         function onSqueezeStart( ){
@@ -571,9 +571,8 @@ class App{
         this.interactables.forEach( interactable => self.collisionObjects.push( interactable.mesh )); 
         this.markables.forEach( markable => self.collisionObjects.push( markable )); 
         
-        const flashLightCollider = this.flashLight.getObjectByName( 'Collider' );
-        flashLightCollider.material.visible = false;
-        this.collisionObjects.push( flashLightCollider );
+        //Add Step 2 here
+        
     }
 
     pickupFlashLight( controller = this.controllers[0] ){
@@ -613,8 +612,7 @@ class App{
                 marker.scale.set(1,1,1);
                 marker.position.copy( intersect.point );
                 marker.visible = true;
-            }else if (intersect.object.parent === this.flashLight){
-                this.pickupFlashLight( controller );
+            //Add Step 3 here
             }else if (intersect.object.parent && intersect.object.parent instanceof TeleportMesh){
                 intersect.object.parent.selected = true;
                 controller.userData.teleport = intersect.object.parent;
