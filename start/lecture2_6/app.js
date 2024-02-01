@@ -1,10 +1,9 @@
-import * as THREE from '../../libs/three/three.module.js';
-import { GLTFLoader } from '../../libs/three/jsm/GLTFLoader.js';
-import { FBXLoader } from '../../libs/three/jsm/FBXLoader.js';
-import { RGBELoader } from '../../libs/three/jsm/RGBELoader.js';
-import { OrbitControls } from '../../libs/three/jsm/OrbitControls.js';
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { LoadingBar } from '../../libs/LoadingBar.js';
-import { vector3ToString } from '../../libs/DebugUtils.js';
 
 class App{
 	constructor(){
@@ -27,7 +26,7 @@ class App{
 		this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true } );
 		this.renderer.setPixelRatio( window.devicePixelRatio );
 		this.renderer.setSize( window.innerWidth, window.innerHeight );
-        this.renderer.outputEncoding = THREE.sRGBEncoding;
+        //this.renderer.outputEncoding = THREE.sRGBEncoding;
         this.renderer.physicallyCorrectLights = true;
         this.setEnvironment();
 		container.appendChild( this.renderer.domElement );

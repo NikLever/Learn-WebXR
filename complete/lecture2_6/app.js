@@ -1,8 +1,8 @@
-import * as THREE from '../../libs/three/three.module.js';
-import { GLTFLoader } from '../../libs/three/jsm/GLTFLoader.js';
-import { FBXLoader } from '../../libs/three/jsm/FBXLoader.js';
-import { RGBELoader } from '../../libs/three/jsm/RGBELoader.js';
-import { OrbitControls } from '../../libs/three/jsm/OrbitControls.js';
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { LoadingBar } from '../../libs/LoadingBar.js';
 
 class App{
@@ -33,8 +33,8 @@ class App{
 		
         this.loadingBar = new LoadingBar();
         
-        this.loadGLTF();
-        //this.loadFBX();
+        //this.loadGLTF();
+        this.loadFBX();
         
         this.controls = new OrbitControls( this.camera, this.renderer.domElement );
         this.controls.target.set(0, 3.5, 0);
